@@ -52,24 +52,25 @@
 
       <SortOptionsModal
         v-if="showSortOptions"
-        :sort-mode="sortMode"
+        :sort-mode="draftSortMode"
         :sort-modes="sortModes"
-        :desired-departure-label="formatLocationText(desiredDeparture)"
-        :desired-arrival-label="formatLocationText(desiredArrival)"
-        :has-desired-departure="Boolean(desiredDeparture)"
-        :has-desired-arrival="Boolean(desiredArrival)"
-        :formatted-preferred-time="formattedPreferredTime"
-        :has-preferred-time="hasPreferredTime"
+        :desired-departure-label="formatLocationText(draftDesiredDeparture)"
+        :desired-arrival-label="formatLocationText(draftDesiredArrival)"
+        :has-desired-departure="Boolean(draftDesiredDeparture)"
+        :has-desired-arrival="Boolean(draftDesiredArrival)"
+        :formatted-preferred-time="draftFormattedPreferredTime"
+        :has-preferred-time="hasDraftPreferredTime"
         :is-locating="isLocating"
         :has-user-location="Boolean(userLocation)"
         :hint="sortHint"
         @close="closeSortModal"
-        @select-sort-mode="value => (sortMode = value)"
+        @confirm="confirmSortOptions"
+        @select-sort-mode="value => (draftSortMode = value)"
         @use-current-location="useCurrentLocation"
-        @open-picker="openPicker"
-        @clear-desired="clearDesired"
-        @open-time-picker="openTimePicker"
-        @clear-preferred-time="clearPreferredTime"
+        @open-picker="mode => openPicker(mode, 'draft')"
+        @clear-desired="mode => clearDesired(mode, 'draft')"
+        @open-time-picker="() => openTimePicker('draft')"
+        @clear-preferred-time="() => clearPreferredTime('draft')"
       />
       <div
         ref="sheetListRef"
@@ -200,6 +201,14 @@ const showTimePicker = ref(false)
 const preferredPeriod = ref<'AM' | 'PM'>('AM')
 const preferredHour = ref('')
 const preferredMinute = ref('')
+const draftSortMode = ref<SortMode>(sortMode.value)
+const draftDesiredDeparture = ref<SelectedLocation | null>(null)
+const draftDesiredArrival = ref<SelectedLocation | null>(null)
+const draftPreferredPeriod = ref<'AM' | 'PM'>(preferredPeriod.value)
+const draftPreferredHour = ref('')
+const draftPreferredMinute = ref('')
+const pickerContext = ref<'applied' | 'draft'>('applied')
+const timePickerContext = ref<'applied' | 'draft'>('applied')
 
 function useCurrentLocation() {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -249,6 +258,9 @@ function parseRoomDeparture(room: RoomPreview) {
 }
 
 const hasPreferredTime = computed(() => Boolean(preferredHour.value && preferredMinute.value))
+const hasDraftPreferredTime = computed(
+  () => Boolean(draftPreferredHour.value && draftPreferredMinute.value),
+)
 
 function parsePreferredDepartureTime() {
   if (!hasPreferredTime.value) return null
@@ -311,15 +323,26 @@ const sortedRooms = computed(() => {
   }
 })
 
+const hintSortMode = computed(() => (showSortOptions.value ? draftSortMode.value : sortMode.value))
+const hintDesiredDeparture = computed(() =>
+  showSortOptions.value ? draftDesiredDeparture.value : desiredDeparture.value,
+)
+const hintDesiredArrival = computed(() =>
+  showSortOptions.value ? draftDesiredArrival.value : desiredArrival.value,
+)
+const hintHasPreferredTime = computed(() =>
+  showSortOptions.value ? hasDraftPreferredTime.value : hasPreferredTime.value,
+)
+
 const sortHint = computed(() => {
-  if (sortMode.value === 'nearest-departure' && !desiredDeparture.value && !userLocation.value) {
-    return '내 위치를 불러오거나 지도에서 희망 출발지를 선택하면 가까운 순으로 정렬할 수 있어요.'
+  if (hintSortMode.value === 'nearest-departure' && !hintDesiredDeparture.value && !userLocation.value) {
+    return '내 위치를 불러오거나 희망 출발지를 설정하면 정확하게 정렬돼요.'
   }
-  if (sortMode.value === 'nearest-arrival' && !desiredArrival.value) {
-    return '지도에서 희망 도착지를 지정하면 가까운 방부터 보여드려요.'
+  if (hintSortMode.value === 'nearest-arrival' && !hintDesiredArrival.value) {
+    return '희망 도착지를 선택하면 도착지 기준으로 정렬할 수 있어요.'
   }
-  if (sortMode.value === 'departure-time' && !hasPreferredTime.value) {
-    return '원하는 출발 시각을 입력하면 시간 순으로 정렬할 수 있어요.'
+  if (hintSortMode.value === 'departure-time' && !hintHasPreferredTime.value) {
+    return '희망 출발 시간을 입력하면 시간 기준으로 정렬돼요.'
   }
   if (locationError.value) {
     return `위치 오류: ${locationError.value}`
@@ -328,50 +351,113 @@ const sortHint = computed(() => {
 })
 
 function toggleSortModal() {
-  showSortOptions.value = !showSortOptions.value
+  if (showSortOptions.value) {
+    closeSortModal()
+  } else {
+    openSortModal()
+  }
+}
+
+function openSortModal() {
+  syncDraftFromApplied()
+  showSortOptions.value = true
 }
 
 function closeSortModal() {
   showSortOptions.value = false
 }
 
-function openPicker(mode: 'departure' | 'arrival') {
+function confirmSortOptions() {
+  applyDraftToApplied()
+  closeSortModal()
+}
+
+function openPicker(mode: 'departure' | 'arrival', target: 'applied' | 'draft' = 'applied') {
+  pickerContext.value = target
   pickerMode.value = mode
 }
 
 function closePicker() {
   pickerMode.value = null
+  pickerContext.value = 'applied'
 }
 
 function handlePickerConfirm(selection: SelectedLocation) {
   if (pickerMode.value === 'departure') {
-    desiredDeparture.value = selection
+    if (pickerContext.value === 'draft') {
+      draftDesiredDeparture.value = cloneLocation(selection)
+    } else {
+      desiredDeparture.value = cloneLocation(selection)
+    }
   } else if (pickerMode.value === 'arrival') {
-    desiredArrival.value = selection
+    if (pickerContext.value === 'draft') {
+      draftDesiredArrival.value = cloneLocation(selection)
+    } else {
+      desiredArrival.value = cloneLocation(selection)
+    }
   }
   closePicker()
 }
 
-function clearDesired(mode: 'departure' | 'arrival') {
+function clearDesired(mode: 'departure' | 'arrival', target: 'applied' | 'draft' = 'applied') {
+  const targetDeparture = target === 'draft' ? draftDesiredDeparture : desiredDeparture
+  const targetArrival = target === 'draft' ? draftDesiredArrival : desiredArrival
   if (mode === 'departure') {
-    desiredDeparture.value = null
+    targetDeparture.value = null
   } else {
-    desiredArrival.value = null
+    targetArrival.value = null
   }
 }
 
-function clearPreferredTime() {
-  preferredHour.value = ''
-  preferredMinute.value = ''
+function clearPreferredTime(target: 'applied' | 'draft' = 'applied') {
+  const hourRef = target === 'draft' ? draftPreferredHour : preferredHour
+  const minuteRef = target === 'draft' ? draftPreferredMinute : preferredMinute
+  hourRef.value = ''
+  minuteRef.value = ''
 }
+
+function cloneLocation(location: SelectedLocation | null): SelectedLocation | null {
+  if (!location) return null
+  return {
+    label: location.label,
+    position: { ...location.position },
+  }
+}
+
+function syncDraftFromApplied() {
+  draftSortMode.value = sortMode.value
+  draftDesiredDeparture.value = cloneLocation(desiredDeparture.value)
+  draftDesiredArrival.value = cloneLocation(desiredArrival.value)
+  draftPreferredPeriod.value = preferredPeriod.value
+  draftPreferredHour.value = preferredHour.value
+  draftPreferredMinute.value = preferredMinute.value
+}
+
+function applyDraftToApplied() {
+  sortMode.value = draftSortMode.value
+  desiredDeparture.value = cloneLocation(draftDesiredDeparture.value)
+  desiredArrival.value = cloneLocation(draftDesiredArrival.value)
+  preferredPeriod.value = draftPreferredPeriod.value
+  preferredHour.value = draftPreferredHour.value
+  preferredMinute.value = draftPreferredMinute.value
+}
+
+syncDraftFromApplied()
 
 function formatLocationText(location: SelectedLocation | null) {
   if (!location) return '미설정'
-  return location.label || '선택한 위치'
+  return location.label || '지정된 위치 없음'
 }
 
 const pickerTitle = computed(() =>
-  pickerMode.value === 'arrival' ? '희망 도착지 선택' : '희망 출발지 선택',
+  pickerMode.value === 'arrival' ? '희망 도착지 설정' : '희망 출발지 설정',
+)
+
+const activeDesiredDeparture = computed(() =>
+  pickerContext.value === 'draft' ? draftDesiredDeparture.value : desiredDeparture.value,
+)
+const activeDesiredArrival = computed(() =>
+  pickerContext.value === 'draft' ? draftDesiredArrival.value : desiredArrival.value,
 )
 
 const pickerInitialPosition = computed<GeoPoint>(() => {
@@ -381,11 +467,11 @@ const pickerInitialPosition = computed<GeoPoint>(() => {
       lng: 126.978,
     }
   if (pickerMode.value === 'arrival') {
-    return desiredArrival.value?.position ?? rooms.value[0]?.arrival.position ?? fallback
+    return activeDesiredArrival.value?.position ?? rooms.value[0]?.arrival.position ?? fallback
   }
   return (
-    desiredDeparture.value?.position ??
-    desiredArrival.value?.position ??
+    activeDesiredDeparture.value?.position ??
+    activeDesiredArrival.value?.position ??
     userLocation.value ??
     fallback
   )
@@ -394,24 +480,50 @@ const pickerInitialPosition = computed<GeoPoint>(() => {
 const formattedPreferredTime = computed(() => {
   if (!hasPreferredTime.value) return '미설정'
   const hour = Number(preferredHour.value) % 12 || 12
-  const minute = preferredMinute.value
+  const minute = preferredMinute.value.padStart(2, '0')
   const period = preferredPeriod.value === 'AM' ? '오전' : '오후'
   return `${period} ${hour}시 ${minute}분`
 })
 
-function openTimePicker() {
+const draftFormattedPreferredTime = computed(() => {
+  if (!hasDraftPreferredTime.value) return '미설정'
+  const hour = Number(draftPreferredHour.value) % 12 || 12
+  const minute = draftPreferredMinute.value.padStart(2, '0')
+  const period = draftPreferredPeriod.value === 'AM' ? '오전' : '오후'
+  return `${period} ${hour}시 ${minute}분`
+})
+
+const activeTimePickerPeriod = computed(() =>
+  timePickerContext.value === 'draft' ? draftPreferredPeriod.value : preferredPeriod.value,
+)
+const activeTimePickerHour = computed(() =>
+  timePickerContext.value === 'draft' ? draftPreferredHour.value : preferredHour.value,
+)
+const activeTimePickerMinute = computed(() =>
+  timePickerContext.value === 'draft' ? draftPreferredMinute.value : preferredMinute.value,
+)
+
+function openTimePicker(target: 'applied' | 'draft' = 'applied') {
+  timePickerContext.value = target
   showTimePicker.value = true
 }
 
 function closeTimePicker() {
   showTimePicker.value = false
+  timePickerContext.value = 'applied'
 }
 
 function handleTimeConfirm(payload: { period: 'AM' | 'PM'; hour: string; minute: string }) {
-  preferredPeriod.value = payload.period
-  preferredHour.value = payload.hour
-  preferredMinute.value = payload.minute
-  showTimePicker.value = false
+  if (timePickerContext.value === 'draft') {
+    draftPreferredPeriod.value = payload.period
+    draftPreferredHour.value = payload.hour
+    draftPreferredMinute.value = payload.minute
+  } else {
+    preferredPeriod.value = payload.period
+    preferredHour.value = payload.hour
+    preferredMinute.value = payload.minute
+  }
+  closeTimePicker()
 }
 
 const viewRef = ref<HTMLElement | null>(null)
@@ -992,6 +1104,3 @@ onBeforeUnmount(() => {
 }
 
 </style>
-
-
-
