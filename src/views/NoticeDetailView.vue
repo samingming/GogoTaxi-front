@@ -1,7 +1,7 @@
 <template>
   <section v-if="notice" class="detail">
     <header class="detail__header">
-      <button class="detail__back" type="button" @click="goBack">← 목록으로</button>
+      <button class="detail__back" type="button" @click="goBack">목록으로</button>
       <span class="detail__badge" :class="`badge--${notice.type}`">
         {{ badgeLabel(notice.type) }}
       </span>
@@ -10,12 +10,14 @@
     </header>
 
     <article class="detail__body">
-      <p v-for="(paragraph, idx) in notice.content" :key="idx">{{ paragraph }}</p>
+      <p v-for="(paragraph, idx) in notice.content" :key="idx">
+        {{ paragraph }}
+      </p>
     </article>
   </section>
   <section v-else class="detail detail--empty">
     <header class="detail__header">
-      <h1>공지사항을 찾을 수 없어요</h1>
+      <h1>공지사항을 찾을 수 없어요.</h1>
       <button class="detail__back" type="button" @click="goBack">← 목록으로</button>
     </header>
   </section>
@@ -24,22 +26,32 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { notices } from '@/components/notices'
-import type { Notice, NoticeType } from '@/components/notices'
+import { notices, type Notice, type NoticeType } from '@/components/notices'
 
 const route = useRoute()
 const router = useRouter()
 
-const notice = computed<Notice | null>(() => {
-  const idParam = route.params.id
-  const fallback = notices[0] ?? null
-  if (typeof idParam !== 'string') return fallback
+const fallbackNotice: Notice = {
+  id: 'fallback',
+  title: '공지 정보를 찾을 수 없습니다.',
+  summary: '요청하신 공지를 찾을 수 없습니다.',
+  content: ['다시 공지 목록에서 확인해 주세요.'],
+  date: '',
+  type: 'info',
+}
 
-  const found = notices.find(item => item.id === idParam)
-  if (found) return found
-
-  router.replace({ name: 'notice' })
-  return fallback
+const notice = computed<Notice>(() => {
+  const id = route.params.id as string | undefined
+  if (!id) {
+    router.replace({ name: 'notice' })
+    return notices[0] ?? fallbackNotice
+  }
+  const found = notices.find(item => item.id === id)
+  if (!found) {
+    router.replace({ name: 'notice' })
+    return notices[0] ?? fallbackNotice
+  }
+  return found
 })
 
 function badgeLabel(type: NoticeType) {
@@ -56,7 +68,9 @@ function badgeLabel(type: NoticeType) {
 function formatFullDate(dateISO: string) {
   const date = new Date(dateISO)
   const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 (${weekday})`
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}년 ${month}월 ${day}일 (${weekday})`
 }
 
 function goBack() {
@@ -67,7 +81,7 @@ function goBack() {
 <style scoped>
 .detail {
   padding: clamp(96px, 14vh, 140px) clamp(18px, 5vw, 48px) clamp(80px, 12vh, 140px);
-  background: linear-gradient(180deg, #f7f3eb 0%, #ffffff 100%);
+  background: #3a2e20;
   min-height: calc(100dvh - var(--header-h));
   display: grid;
   gap: clamp(24px, 4vw, 36px);
@@ -75,14 +89,14 @@ function goBack() {
 .detail__header {
   display: grid;
   gap: 10px;
-  color: #2f241b;
+  color: #f8f1e4;
   max-width: 900px;
 }
 .detail__back {
   justify-self: flex-start;
   border: none;
   background: none;
-  color: #1d4ed8;
+  color: #fdd651;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -97,21 +111,20 @@ function goBack() {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: #2f1c00;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
 }
-.badge--update {
-  background: linear-gradient(135deg, #f97316, #fb923c);
-}
+.badge--update,
 .badge--maintenance {
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  background: #fdd651;
 }
 .badge--info {
   background: linear-gradient(135deg, #10b981, #34d399);
+  color: #fff;
 }
 .detail time {
   font-size: 13px;
-  color: #85766a;
+  color: rgba(255, 244, 220, 0.7);
 }
 .detail h1 {
   margin: 0;

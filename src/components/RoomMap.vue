@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { loadKakaoMaps } from '@/utils/kakaoMaps'
+import { loadKakaoMaps } from '@/services/kakaoMaps'
 import type { RoomPreview } from '@/types/rooms'
 
 type KakaoNamespace = typeof window.kakao
@@ -29,9 +29,10 @@ const errorMessage = ref<string | null>(null)
 const canvas = ref<HTMLDivElement>()
 
 let kakaoApi: KakaoNamespace | null = null
-let map: any = null
-const listMarkers: any[] = []
-const selectedMarkers: any[] = []
+let map: kakao.maps.Map | null = null
+const listMarkers: kakao.maps.Marker[] = []
+const selectedMarkers: kakao.maps.Marker[] = []
+let resizeObserver: ResizeObserver | null = null
 
 const hasSelection = computed(() => Boolean(props.selectedRoom))
 
@@ -42,7 +43,7 @@ function setError(message: string, detail?: unknown) {
   console.error('[RoomMap]', message, detail)
 }
 
-function clearMarkers(collection: any[]) {
+function clearMarkers(collection: kakao.maps.Marker[]) {
   collection.forEach(marker => marker.setMap(null))
   collection.splice(0, collection.length)
 }
@@ -105,9 +106,27 @@ function initializeMap(kakao: KakaoNamespace) {
     center: new kakao.maps.LatLng(37.5665, 126.978),
     level: 5,
   })
+  if ('ResizeObserver' in window) {
+    resizeObserver = new ResizeObserver(() => {
+      if (!map) return
+      const center = map.getCenter()
+      map.relayout()
+      map.setCenter(center)
+    })
+    resizeObserver.observe(canvas.value)
+  } else {
+    window.addEventListener('resize', handleWindowResize)
+  }
   ready.value = true
   errorMessage.value = null
   updateMarkers()
+}
+
+function handleWindowResize() {
+  if (!map) return
+  const center = map.getCenter()
+  map.relayout()
+  map.setCenter(center)
 }
 
 onMounted(async () => {
@@ -139,6 +158,8 @@ watch(
 onBeforeUnmount(() => {
   clearMarkers(listMarkers)
   clearMarkers(selectedMarkers)
+  resizeObserver?.disconnect()
+  window.removeEventListener('resize', handleWindowResize)
   map = null
   kakaoApi = null
 })

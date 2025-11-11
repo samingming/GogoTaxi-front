@@ -49,84 +49,61 @@
               </radialGradient>
             </defs>
 
-            <rect width="800" height="520" fill="#f9f6eb" rx="40" ry="40" />
+            <rect width="800" height="520" fill="none" rx="40" ry="40" />
 
             <g class="map-illustration" transform="translate(-20 -85) scale(1.08)">
               <path
                 class="map-land"
-                d="
-                  M 120 470
-                  C 70 380 90 270 210 220
-                  C 260 200 250 150 320 120
-                  C 410 80 520 120 600 180
-                  C 705 260 720 340 670 400
-                  C 628 450 572 478 530 508
-                  C 470 550 390 538 315 540
-                  C 230 542 170 530 120 470
-                  Z
-                "
+                d=" M 120 470 C 70 380 90 270 210 220 C 260 200 250 150 320 120 C 410 80 520 120 600 180 C 705 260 720 340 670 400 C 628 450 572 478 530 508 C 470 550 390 538 315 540 C 230 542 170 530 120 470 Z "
               />
               <path
                 class="map-shadow"
-                d="
-                  M 150 500
-                  C 120 420 160 340 250 300
-                  C 310 270 310 220 360 200
-                  C 430 170 500 200 550 240
-                  C 620 295 640 350 610 395
-                  C 570 455 480 470 430 500
-                  C 360 540 250 540 180 520
-                  Z
-                "
+                d=" M 150 500 C 120 420 160 340 250 300 C 310 270 310 220 360 200 C 430 170 500 200 550 240 C 620 295 640 350 610 395 C 570 455 480 470 430 500 C 360 540 250 540 180 520 Z "
               />
 
               <path
                 class="map-border"
-                d="
-                  M 120 470
-                  C 70 380 90 270 210 220
-                  C 260 200 250 150 320 120
-                  C 410 80 520 120 600 180
-                  C 705 260 720 340 670 400
-                  C 628 450 572 478 530 508
-                  C 470 550 390 538 315 540
-                  C 230 542 170 530 120 470
-                "
+                d=" M 120 470 C 70 380 90 270 210 220 C 260 200 250 150 320 120 C 410 80 520 120 600 180 C 705 260 720 340 670 400 C 628 450 572 478 530 508 C 470 550 390 538 315 540 C 230 542 170 530 120 470 "
               />
 
               <path
                 class="map-trail"
-                d="
-                  M 165 440
-                  C 210 400 225 350 280 310
-                  C 330 275 340 230 380 210
-                  C 420 190 465 215 495 240
-                  C 530 268 565 260 600 230
-                  C 625 208 642 212 645 238
-                  C 650 280 610 320 575 345
-                  C 530 380 515 400 500 430
-                  C 475 480 410 490 350 480
-                  C 305 472 255 480 210 470
-                  C 190 465 175 456 165 440
-                "
+                d=" M 170 440 C 212 402 232 352 288 320 C 332 294 352 252 392 236 C 432 220 468 236 500 256 C 536 278 560 272 585 246 C 600 230 602 236 598 258 C 592 300 560 326 528 350 C 492 376 472 398 456 424 C 432 462 380 472 330 466 C 284 461 240 466 206 456 C 186 450 176 446 170 440 "
               />
 
               <path
-                class="map-trail map-trail--secondary"
-                d="
-                  M 250 320
-                  C 300 320 320 360 360 360
-                  C 420 360 440 320 490 320
-                  C 530 320 560 350 560 380
-                "
+                class="map-water"
+                d=" M 468 374 C 482 354 514 350 540 360 C 564 370 576 390 566 408 C 552 432 518 440 488 430 C 464 422 450 400 456 384 C 460 376 462 378 468 374 Z "
+              />
+              <path
+                class="map-water-highlight"
+                d=" M 482 380 C 496 370 520 370 534 378 C 542 382 546 392 536 398 C 522 408 500 408 488 398 C 480 392 476 386 482 380 Z "
               />
 
-              <ellipse class="map-water" cx="520" cy="220" rx="58" ry="34" />
-              <ellipse class="map-water" cx="265" cy="260" rx="32" ry="20" />
-
-              <rect class="map-building" x="360" y="280" width="40" height="26" rx="6" />
-              <rect class="map-building" x="455" y="340" width="42" height="28" rx="6" />
-              <rect class="map-building" x="305" y="365" width="32" height="24" rx="6" />
+              <g class="map-ornaments" aria-hidden="true">
+                <g class="map-pebbles map-pebbles--northwest">
+                  <ellipse class="map-pebble" cx="235" cy="235" rx="12" ry="8" />
+                  <ellipse class="map-pebble" cx="252" cy="225" rx="7" ry="5" />
+                  <ellipse class="map-pebble" cx="244" cy="250" rx="5" ry="4" />
+                </g>
+                <g class="map-pebbles map-pebbles--southwest">
+                  <ellipse class="map-pebble" cx="250" cy="420" rx="10" ry="7" />
+                  <ellipse class="map-pebble" cx="266" cy="408" rx="6" ry="4" />
+                  <ellipse class="map-pebble" cx="258" cy="428" rx="4" ry="3" />
+                </g>
+                <g class="map-house" transform="translate(560 300)">
+                  <image
+                    class="map-house-image"
+                    :href="houseImage"
+                    :xlink:href="houseImage"
+                    x="-48"
+                    y="-52"
+                    width="112"
+                    height="112"
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                </g>
+              </g>
 
               <g
                 class="menu-point menu-point--make"
@@ -138,8 +115,8 @@
                 @keydown.space.prevent="goCreate"
               >
                 <image
-                  :href="logoMake"
-                  :xlink:href="logoMake"
+                  :href="logoFind"
+                  :xlink:href="logoFind"
                   x="188"
                   y="278"
                   width="92"
@@ -157,10 +134,10 @@
                 @keydown.space.prevent="goSearch"
               >
                 <image
-                  :href="logoFind"
-                  :xlink:href="logoFind"
-                  x="431"
-                  y="216"
+                  :href="logoMake"
+                  :xlink:href="logoMake"
+                  x="415"
+                  y="148"
                   width="92"
                   height="92"
                   class="menu-logo"
@@ -190,11 +167,11 @@
         </div>
         <ul class="legend legend--menus">
           <li>
-            <img :src="logoMake" alt="방 만들기" class="legend-logo legend-logo--make" />
+            <img :src="logoFind" alt="방 만들기" class="legend-logo legend-logo--make" />
             <span>방 만들기</span>
           </li>
           <li>
-            <img :src="logoFind" alt="방 찾기" class="legend-logo legend-logo--find" />
+            <img :src="logoMake" alt="방 찾기" class="legend-logo legend-logo--find" />
             <span>방 찾기</span>
           </li>
           <li>
@@ -205,34 +182,34 @@
       </div>
 
       <section class="gateway">
-      <header class="gateway-header">
-        <h3>서비스 바로가기</h3>
-        <p>업데이트된 공지와 결제 관리를 빠르게 확인해 보세요.</p>
-      </header>
-      <div class="gateway-grid">
-        <article class="gateway-card gateway-card--notice">
-          <div class="card-body">
-            <h4>공지사항 센터</h4>
-            <p>운영팀에서 전하는 최신 소식, 서비스 공지, 점검 안내를 한곳에서 확인할 수 있어요.</p>
-          </div>
-          <footer>
-            <button class="card-btn" type="button" @click="goNotice">
-              공지사항 바로가기
-            </button>
-          </footer>
-        </article>
-        <article class="gateway-card gateway-card--payment">
-          <div class="card-body">
-            <h4>결제 수단 관리</h4>
-            <p>등록된 카드와 계좌를 손쉽게 관리하고, 결제 이력을 확인할 수 있도록 준비 중이에요.</p>
-          </div>
-          <footer>
-            <button class="card-btn" type="button" @click="goPayment">
-              결제 관리 준비 알림
-            </button>
-          </footer>
-        </article>
-      </div>
+        <header class="gateway-header">
+          <h3>서비스 바로가기</h3>
+          <p>업데이트된 공지와 결제 관리를 빠르게 확인해 보세요.</p>
+        </header>
+        <div class="gateway-grid">
+          <article class="gateway-card gateway-card--notice">
+            <div class="card-body">
+              <h4>공지사항 센터</h4>
+              <p>운영팀에서 전하는 최신 소식, 서비스 공지, 점검 안내를 한곳에서 확인할 수 있어요.</p>
+            </div>
+            <footer>
+              <button class="card-btn" type="button" @click="goNotice">
+                공지사항 바로가기
+              </button>
+            </footer>
+          </article>
+          <article class="gateway-card gateway-card--payment">
+            <div class="card-body">
+              <h4>결제 수단 관리</h4>
+              <p>등록된 카드와 계좌를 손쉽게 관리하고, 결제 이력을 확인할 수 있도록 준비 중이에요.</p>
+            </div>
+            <footer>
+              <button class="card-btn" type="button" @click="goPayment">
+                결제 관리 준비 알림
+              </button>
+            </footer>
+          </article>
+        </div>
       </section>
     </div>
   </section>
@@ -245,25 +222,16 @@ import { useRouter } from 'vue-router'
 import logoMake from '@/assets/logo_make.png'
 import logoFind from '@/assets/logo_find.png'
 import logoMy from '@/assets/logo_my.png'
+import houseImage from '@/assets/house.png'
 import { notices } from '@/components/notices'
 
 const router = useRouter()
 
-function goCreate() {
-  router.push({ name: 'create-room' })
-}
-function goSearch() {
-  router.push({ name: 'find-room' })
-}
-function goMyRooms() {
-  router.push({ name: 'my-rooms' })
-}
-function goNotice() {
-  router.push({ name: 'notice' })
-}
-function goPayment() {
-  router.push({ name: 'payment-methods' })
-}
+function goCreate() { router.push({ name: 'create-room' }) }
+function goSearch() { router.push({ name: 'find-room' }) }
+function goMyRooms() { router.push({ name: 'my-rooms' }) }
+function goNotice() { router.push({ name: 'notice' }) }
+function goPayment() { router.push({ name: 'payment-methods' }) }
 
 const latestNotice = computed(() => {
   if (!notices.length) return null
@@ -279,25 +247,24 @@ function goLatestNotice() {
 </script>
 
 <style scoped>
-
 .main {
   min-height: calc(100dvh - var(--tab-h));
-  padding-bottom: var(--tab-h);
-  background: linear-gradient(180deg, #3c2919 0%, #3c2919 60vh, #f6f2e8 100%);
+  padding-bottom: 0;
+  background: #3a2e20;
 }
 
 .hero {
   position: relative;
   width: 100%;
-  min-height: clamp(880px, 135dvh, 1600px);
-  padding: clamp(36px, 6vh, 84px) 0 clamp(110px, 8vh, 180px);
+  /* ⬇️ 갈색 여백 줄이기: 최소 높이/하단 패딩 축소 */
+  min-height: clamp(640px, 92dvh, 1100px);
+  padding: clamp(36px, 6vh, 84px) 0 clamp(16px, 4vh, 36px);
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(58, 41, 25, 0.95) 0%, rgba(45, 29, 17, 0.95) 62%, #372112 100%),
-    url('@/assets/path-bg.jpg');
+  background-color: #3a2e20;
+
   background-size: cover;
   background-position: center top;
-  background-attachment: fixed;
+  background-attachment: fixed; /* 필요 없으면 주석 처리해도 됨 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -306,9 +273,7 @@ function goLatestNotice() {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 20% 15%, rgba(255, 243, 210, 0.18), transparent 50%),
-    radial-gradient(circle at 80% 10%, rgba(255, 240, 200, 0.16), transparent 45%),
-    radial-gradient(circle at 50% 85%, rgba(0, 0, 0, 0.35), transparent 70%);
+  background: none;
   pointer-events: none;
 }
 
@@ -319,19 +284,10 @@ function goLatestNotice() {
   gap: clamp(16px, 3vw, 28px);
   padding: clamp(18px, 3vw, 28px);
   border-radius: 36px;
-  background: linear-gradient(145deg, #faf7ec 0%, #f2ede0 50%, #e7decd 100%);
-  border: 1px solid rgba(92, 64, 36, 0.22);
-  box-shadow: 0 48px 90px rgba(8, 6, 3, 0.45);
+  background: #f9f6eb;
+  box-shadow: 0 36px 72px rgba(8, 6, 3, 0.32);
   z-index: 0;
   margin-bottom: clamp(12px, 2vh, 24px);
-}
-.map-board::after {
-  content: '';
-  position: absolute;
-  inset: 12px;
-  border-radius: 28px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
-  pointer-events: none;
 }
 .board-header {
   position: relative;
@@ -359,9 +315,8 @@ function goLatestNotice() {
   z-index: 1;
   width: 100%;
   aspect-ratio: 800 / 520;
-  border-radius: 28px;
-  overflow: visible;
-  box-shadow: inset 0 0 0 1px rgba(60, 45, 28, 0.12);
+  border-radius: 24px;
+  overflow: hidden;
 }
 .map-svg {
   width: 100%;
@@ -369,61 +324,19 @@ function goLatestNotice() {
   display: block;
 }
 
-.map-land {
-  fill: url(#map-land);
-  stroke: rgba(64, 108, 55, 0.3);
-  stroke-width: 8;
-  stroke-linejoin: round;
-}
-.map-shadow {
-  fill: url(#map-shadow);
-}
-.map-border {
-  fill: none;
-  stroke: rgba(38, 72, 39, 0.35);
-  stroke-width: 10;
-  stroke-linejoin: round;
-}
-.map-trail {
-  fill: none;
-  stroke: #f6f2e8;
-  stroke-width: 12;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
-}
-.map-trail--secondary {
-  stroke: #ffe8a3;
-  stroke-width: 6;
-  stroke-dasharray: 14 12;
-  filter: none;
-}
-.map-water {
-  fill: url(#map-water);
-  stroke: #4fa1c7;
-  stroke-width: 4;
-  opacity: 0.9;
-}
-.map-building {
-  fill: #fdf1c2;
-  stroke: #bd8a27;
-  stroke-width: 3;
-}
-.menu-point {
-  cursor: pointer;
-}
-.menu-logo {
-  filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.35));
-  transition: transform 0.2s ease, filter 0.2s ease;
-}
-.menu-point:hover .menu-logo {
-  transform: translateY(-4px);
-  filter: drop-shadow(0 22px 32px rgba(0, 0, 0, 0.4));
-}
-.menu-point:focus-visible .menu-logo {
-  transform: translateY(-4px) scale(1.02);
-  filter: drop-shadow(0 24px 36px rgba(0, 0, 0, 0.45));
-}
+.map-land { fill: url(#map-land); stroke: rgba(64,108,55,.3); stroke-width: 8; stroke-linejoin: round; }
+.map-shadow { fill: url(#map-shadow); }
+.map-border { fill: none; stroke: rgba(38,72,39,.35); stroke-width: 10; stroke-linejoin: round; }
+.map-trail { fill: none; stroke: #f6f2e8; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 6px rgba(0,0,0,.15)); }
+.map-water { fill: url(#map-water); stroke: #4fa1c7; stroke-width: 3; opacity: 1; }
+.map-water-highlight { fill: rgba(255,255,255,.28); stroke: none; filter: blur(.5px); }
+.map-ornaments { fill: none; pointer-events: none; }
+.map-pebble { fill: #d9cec0; stroke: rgba(64,49,32,.35); stroke-width: 2; }
+.map-house-image { filter: drop-shadow(0 6px 12px rgba(0,0,0,.3)); }
+.menu-point { cursor: pointer; }
+.menu-logo { filter: drop-shadow(0 16px 28px rgba(0,0,0,.35)); transition: transform .2s ease, filter .2s ease; }
+.menu-point:hover .menu-logo { transform: translateY(-4px); filter: drop-shadow(0 22px 32px rgba(0,0,0,.4)); }
+.menu-point:focus-visible .menu-logo { transform: translateY(-4px) scale(1.02); filter: drop-shadow(0 24px 36px rgba(0,0,0,.45)); }
 
 .legend {
   position: relative;
@@ -447,197 +360,91 @@ function goLatestNotice() {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(2px);
 }
-.legend-logo {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-}
-.legend--menus span:last-child {
-  font-weight: 600;
-  color: #3b342c;
-}
+.legend-logo { width: 28px; height: 28px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,.2)); }
+.legend--menus span:last-child { font-weight: 600; color: #3b342c; }
 
 .gateway {
-  width: min(96%, 980px);
-  margin: clamp(0px, 1.6vh, 18px) auto 0;
+  width: min(94%, 940px);
+  margin: clamp(0px, 1vh, 10px) auto clamp(0px, 1vh, 10px);
   padding: 0 clamp(18px, 6vw, 32px);
   display: grid;
-  gap: clamp(20px, 3vw, 28px);
+  gap: clamp(16px, 2.5vw, 24px);
 }
-.gateway-header {
-  text-align: center;
-  color: #f8f4ec;
-}
-.gateway-header h3 {
-  margin: 0 0 8px;
-  font-size: clamp(20px, 4vw, 26px);
-  font-weight: 700;
-}
-.gateway-header p {
-  margin: 0;
-  font-size: clamp(13px, 3vw, 15px);
-  color: rgba(255, 244, 220, 0.75);
-}
-.gateway-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: clamp(18px, 3vw, 26px);
-}
+.gateway-header { text-align: center; color: #f8f4ec; }
+.gateway-header h3 { margin: 0 0 8px; font-size: clamp(20px, 4vw, 26px); font-weight: 700; }
+.gateway-header p { margin: 0; font-size: clamp(13px, 3vw, 15px); color: rgba(255,244,220,.75); }
+.gateway-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: clamp(18px,3vw,26px); }
 .gateway-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  padding: clamp(22px, 4vw, 30px);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(120, 92, 68, 0.14);
-  box-shadow: 0 24px 48px rgba(20, 12, 6, 0.25);
-  backdrop-filter: blur(8px);
-  transform: translateY(0);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  position: relative; display: flex; flex-direction: column; gap: 22px;
+  padding: clamp(22px, 4vw, 30px); border-radius: 24px; background: rgba(255,255,255,.94);
+  border: 1px solid rgba(120,92,68,.14); box-shadow: 0 24px 48px rgba(20,12,6,.25);
+  backdrop-filter: blur(8px); transform: translateY(0); transition: transform .22s ease, box-shadow .22s ease;
 }
-.gateway-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 32px 58px rgba(20, 12, 6, 0.28);
-}
-.gateway-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 24px;
-  background: var(--card-accent, transparent);
-  opacity: 0.18;
-  pointer-events: none;
-}
-.gateway-card--notice {
-  --card-accent: linear-gradient(135deg, rgba(255, 173, 100, 0.4), rgba(255, 212, 150, 0.2));
-}
-.gateway-card--payment {
-  --card-accent: linear-gradient(135deg, rgba(126, 192, 255, 0.4), rgba(167, 219, 255, 0.2));
-}
-.gateway-card h4 {
-  margin: 0 0 12px;
-  font-size: 18px;
-  color: #2f241b;
-}
-.gateway-card p {
-  margin: 0;
-  line-height: 1.6;
-  color: #6d6257;
-  font-size: 14px;
-}
+.gateway-card:hover { transform: translateY(-6px); box-shadow: 0 32px 58px rgba(20,12,6,.28); }
+.gateway-card::after { content:''; position:absolute; inset:0; border-radius:24px; background: var(--card-accent,transparent); opacity:.18; pointer-events:none; }
+.gateway-card--notice, .gateway-card--payment { --card-accent: linear-gradient(135deg, rgba(126,192,255,.4), rgba(167,219,255,.2)); }
+.gateway-card h4 { margin: 0 0 12px; font-size: 18px; color:#2f241b; }
+.gateway-card p { margin:0; line-height:1.6; color:#6d6257; font-size:14px; }
 .card-btn {
-  align-self: flex-start;
-  padding: 10px 18px;
-  border-radius: 12px;
-  border: none;
-  background: #2f241b;
-  color: #fff6e8;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  align-self:flex-start; padding:10px 18px; border-radius:12px; border:none; background:#2f241b; color:#fff6e8;
+  font-size:14px; font-weight:600; cursor:pointer; transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
 }
-.card-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(20, 12, 6, 0.25);
-  background: #433323;
-}
+.card-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(20,12,6,.25); background:#433323; }
+
 .notice-banner {
   width: min(92%, 980px);
   margin: clamp(-48px, -6vh, -24px) auto clamp(10px, 2vh, 20px);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 18px 32px rgba(8, 4, 0, 0.28);
+  border: 1px solid rgba(255,255,255,.28);
+  background: rgba(255,255,255,.04);
+  box-shadow: 0 18px 32px rgba(8,4,0,.28);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform .2s ease, box-shadow .2s ease;
   position: relative;
   z-index: 2;
 }
 .notice-banner:focus-visible {
   outline: none;
-  box-shadow:
-    0 20px 38px rgba(8, 4, 0, 0.32),
-    0 0 0 3px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 20px 38px rgba(8,4,0,.32), 0 0 0 3px rgba(255,255,255,.4);
   transform: translateY(-1px);
 }
 .notice-banner:hover {
   transform: translateY(-2px);
-  box-shadow:
-    0 24px 44px rgba(8, 4, 0, 0.34),
-    0 0 0 1px rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 44px rgba(8,4,0,.34), 0 0 0 1px rgba(255,255,255,.16);
 }
 .notice-banner__glass {
-  display: flex;
-  align-items: center;
-  gap: clamp(8px, 2vw, 16px);
-  padding: clamp(6px, 2vw, 10px) clamp(14px, 3vw, 22px);
+  display:flex; align-items:center; gap: clamp(8px,2vw,16px);
+  padding: clamp(6px,2vw,10px) clamp(14px,3vw,22px);
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(135deg, rgba(255,255,255,.24), rgba(255,255,255,.05));
   backdrop-filter: blur(16px);
-  color: #fff6eb;
+  color:#fff6eb;
 }
 .notice-banner__label {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(59, 130, 246, 0.4);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #e5f2ff;
+  display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px;
+  background: rgba(59,130,246,.4); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#e5f2ff;
 }
-.notice-banner__marquee {
-  position: relative;
-  flex: 1;
-  overflow: hidden;
-  height: 20px;
-}
+.notice-banner__marquee { position: relative; flex:1; overflow: hidden; height:20px; }
 .notice-banner__track {
-  display: inline-block;
-  min-width: 100%;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 247, 233, 0.9);
-  padding-left: 100%;
-  animation: notice-marquee 18s linear infinite;
-  will-change: transform;
+  display:inline-block; min-width:100%; white-space:nowrap; font-size:14px; font-weight:600; color: rgba(255,247,233,.9);
+  padding-left:100%; animation: notice-marquee 18s linear infinite; will-change: transform;
 }
 
 @media (min-width: 1024px) {
-  .hero {
-    padding-top: clamp(72px, 9vh, 124px);
-  }
-  .notice-banner {
-    margin: clamp(-32px, -4vh, -18px) auto clamp(14px, 2.2vh, 26px);
-  }
-  .map-board {
-    margin-bottom: clamp(20px, 3vh, 36px);
-  }
-  .gateway {
-    margin: clamp(16px, 2.6vh, 32px) auto 0;
-  }
+  .hero { padding-top: clamp(72px, 9vh, 124px); }
+  .notice-banner { margin: clamp(-32px, -4vh, -18px) auto clamp(14px, 2.2vh, 26px); }
+  .map-board { margin-bottom: clamp(20px, 3vh, 36px); }
+  .gateway { margin: clamp(16px, 2.6vh, 32px) auto 0; }
 }
 
 @keyframes notice-marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
 }
 
 @media (max-width: 820px) {
-  .map-board {
-    margin-bottom: clamp(32px, 6vh, 70px);
-  }
+  /* ⬇️ 지도 섹션 아래 간격 축소 */
+  .map-board { margin-bottom: clamp(16px, 3vh, 36px); }
   .notice-banner {
     width: min(96%, 860px);
     margin: 0 auto clamp(24px, 4vh, 36px);
@@ -645,36 +452,13 @@ function goLatestNotice() {
 }
 
 @media (max-width: 600px) {
-  .hero {
-    padding-bottom: 240px;
-  }
-  .map-board {
-    gap: 14px;
-    padding: 18px;
-    border-radius: 26px;
-  }
-  .map-board::after {
-    inset: 10px;
-    border-radius: 20px;
-  }
-  .board-body {
-    border-radius: 20px;
-  }
-  .info-panel {
-    width: calc(100% - 32px);
-  }
-  .notice-banner__glass {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    gap: 6px;
-  }
-  .notice-banner__label {
-    justify-content: center;
-    width: 100%;
-  }
-  .notice-banner__marquee {
-    width: 100%;
-  }
+  /* ⬇️ 과도한 하단 패딩 제거 */
+  .hero { padding-bottom: clamp(16px, 4vh, 56px); }
+  .map-board { gap: 14px; padding: 18px; border-radius: 26px; }
+  .board-body { border-radius: 20px; }
+  .info-panel { width: calc(100% - 32px); }
+  .notice-banner__glass { flex-direction: column; align-items: stretch; text-align: center; gap: 6px; }
+  .notice-banner__label { justify-content: center; width: 100%; }
+  .notice-banner__marquee { width: 100%; }
 }
 </style>

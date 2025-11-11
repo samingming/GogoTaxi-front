@@ -46,7 +46,7 @@
           <circle cx="11" cy="11" r="3.2" fill="currentColor" opacity="0.15" />
         </svg>
       </span>
-      <span class="label">방찾기</span>
+      <span class="label">방 찾기</span>
     </button>
     <button :class="['tab-btn--myrooms', btnClass('my-rooms')]" @click="go('my-rooms')">
       <span class="icon" aria-hidden="true">

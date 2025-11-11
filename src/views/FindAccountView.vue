@@ -118,13 +118,13 @@ function switchMode(next: Mode) {
 
 function ensurePasswordRules(password: string) {
   if (password.length < 4) {
-    throw new Error('비밀번호는 4자 이상 입력해주세요.')
+    throw new Error('비밀번호는 4자 이상 입력해 주세요.')
   }
 }
 
 function handleFindId() {
   if (!name.value.trim()) {
-    alert('이름을 입력해주세요.')
+    alert('이름을 입력해 주세요.')
     return
   }
   const user = findUserByName(name.value.trim())
@@ -135,11 +135,11 @@ function handleFindId() {
 
 function handleResetPassword() {
   if (!id.value.trim()) {
-    alert('아이디를 입력해주세요.')
+    alert('아이디를 입력해 주세요.')
     return
   }
   if (!newPassword.value || !confirmPassword.value) {
-    alert('새 비밀번호를 모두 입력해주세요.')
+    alert('새 비밀번호를 모두 입력해 주세요.')
     return
   }
   if (newPassword.value !== confirmPassword.value) {
@@ -155,7 +155,7 @@ function handleResetPassword() {
       return
     }
     updateUserPassword(user.id, newPassword.value)
-    resultMessage.value = '비밀번호가 재설정되었습니다. 새 비밀번호로 다시 로그인해주세요.'
+    resultMessage.value = '비밀번호가 재설정되었습니다. 새 비밀번호로 다시 로그인해 주세요.'
   } catch (err) {
     const msg = err instanceof Error ? err.message : '비밀번호 재설정에 실패했습니다.'
     alert(msg)

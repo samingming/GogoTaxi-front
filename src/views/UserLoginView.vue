@@ -1,13 +1,11 @@
-<template>
+﻿<template>
   <section class="auth-wrap">
     <div class="card">
-      <!-- 상단 로고 -->
       <div class="logo">
-        <img src="@/assets/logo_my.png" alt="택시 로고" class="logo-img" />
+        <img src="@/assets/logo_my.png" alt="꼬꼬택 로고" class="logo-img" />
       </div>
       <h1 class="title">로그인</h1>
 
-      <!-- 입력 -->
       <form class="form" @submit.prevent="login">
         <div class="field">
           <input
@@ -34,27 +32,34 @@
         </div>
       </form>
 
-      <!-- 간편 로그인 -->
       <div class="sep"><span>또는</span></div>
       <div class="social">
-        <button class="kakao" type="button" @click="kakaoLogin">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" fill="#3d1d1f" />
-            <path
-              d="M12 6c-3.314 0-6 2.203-6 4.92 0 1.75 1.24 3.275 3.08 4.04L8 18l3.246-2.12c.244.02.492.04.754.04 3.314 0 6-2.203 6-4.92S15.314 6 12 6Z"
-              fill="#fee500"
-            />
-          </svg>
-          카카오로 계속하기
+        <button class="social-btn kakao" type="button" @click="kakaoLogin">
+          <span class="kakao-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M16 4C8.268 4 2 8.61 2 14.24c0 3.75 2.68 6.97 6.7 8.65L7.724 27.4a1 1 0 0 0 1.46 1.1l5.474-3.11c.447.03.9.05 1.342.05 7.732 0 14-4.61 14-10.24C30 8.61 23.732 4 16 4Z"
+                fill="#000000"
+              />
+            </svg>
+          </span>
+          <span class="kakao-label">카카오 로그인</span>
         </button>
-        <button class="google" type="button" @click="googleLogin">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21.6 12.227c0-.76-.068-1.492-.195-2.227H12v4.216h5.404c-.232 1.21-.932 2.233-1.983 2.92v2.42h3.2c1.872-1.72 2.979-4.257 2.979-7.329Z" fill="#4285f4" />
-            <path d="M12 22c2.7 0 4.968-.893 6.624-2.447l-3.2-2.42c-.888.6-2.024.96-3.424.96-2.63 0-4.858-1.772-5.657-4.153H3.04v2.487C4.68 19.983 8.056 22 12 22Z" fill="#34a853" />
-            <path d="M6.343 13.94A5.999 5.999 0 0 1 6 12c0-.672.117-1.324.333-1.94V7.573H3.04A9.983 9.983 0 0 0 2 12c0 1.61.384 3.127 1.04 4.427l3.303-2.487Z" fill="#fbbc04" />
-            <path d="M12 6.25c1.468 0 2.788.505 3.824 1.494l2.868-2.868C16.968 3.565 14.7 2.5 12 2.5 8.056 2.5 4.68 4.517 3.04 7.573l3.293 2.487C7.142 8.678 9.37 6.25 12 6.25Z" fill="#ea4335" />
-          </svg>
-          Google로 계속하기
+
+        <button class="social-btn google gsi-material-button" type="button" @click="googleLogin">
+          <span class="gsi-material-button-state"></span>
+          <span class="gsi-material-button-content-wrapper">
+            <span class="gsi-material-button-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.60l6.85-6.85C35.90 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <path fill="none" d="M0 0h48v48H0z"/>
+              </svg>
+            </span>
+            <span class="gsi-material-button-contents">Google 로그인</span>
+          </span>
         </button>
       </div>
     </div>
@@ -80,7 +85,7 @@ function resolveRedirect() {
 
 async function login() {
   if (!id.value || !pw.value) {
-    alert('아이디와 비밀번호를 입력해주세요.')
+    alert('아이디와 비밀번호를 입력해 주세요.')
     return
   }
   try {
@@ -94,24 +99,37 @@ async function login() {
 
 async function kakaoLogin() {
   try {
+    const redirect = resolveRedirect()
     const profile = await loginWithKakao()
-    socialLogin('kakao', profile)
-    router.push(resolveRedirect())
+    const result = socialLogin('kakao', profile, { redirect })
+    if (result.status === 'needs_terms') {
+      router.push({ name: 'social-consent' })
+      return
+    }
+    router.push(redirect)
   } catch (err: unknown) {
     console.error(err)
-    const msg = err instanceof Error ? err.message : '카카오 로그인에 실패했습니다. 다시 시도해주세요.'
+    const msg =
+      err instanceof Error
+        ? err.message
+        : '카카오 로그인이 실패했어요. 다시 시도해 주세요.'
     alert(msg)
   }
 }
 
 async function googleLogin() {
   try {
+    const redirect = resolveRedirect()
     const { code } = await loginWithGoogle()
-    // TODO: 서버에 code를 전달해 토큰 교환 및 사용자 정보 조회
-    socialLogin('google', { id: code, name: 'Google 사용자' })
-    router.push(resolveRedirect())
+    // TODO: code를 서버에 전달해 토큰 교환 및 사용자 정보 조회 구현
+    const result = socialLogin('google', { id: code, name: 'Google 사용자' }, { redirect })
+    if (result.status === 'needs_terms') {
+      router.push({ name: 'social-consent' })
+      return
+    }
+    router.push(redirect)
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Google 로그인에 실패했습니다.'
+    const msg = err instanceof Error ? err.message : 'Google 로그인에 실패했어요.'
     alert(msg)
   }
 }
@@ -119,12 +137,13 @@ async function googleLogin() {
 
 <style scoped>
 .auth-wrap {
-  min-height: calc(100vh - var(--tab-h, 64px));
+  min-height: calc(100vh - var(--header-h, 56px));
   display: grid;
   place-items: start center;
   padding: 32px 16px;
   background: #f6f7f9;
 }
+
 .card {
   width: 100%;
   max-width: 380px;
@@ -133,31 +152,36 @@ async function googleLogin() {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
   padding: 28px 22px 22px;
 }
+
 .logo {
   width: 72px;
   height: 72px;
-  border-radius: 50%;
+  border-radius: 48%;
   display: grid;
   place-items: center;
   margin: 0 auto 12px;
   background: #fff7d1;
   box-shadow: inset 0 0 0 2px #ffe48e;
 }
+
 .logo-img {
   width: 70%;
   height: 70%;
   object-fit: contain;
 }
+
 .title {
   text-align: center;
   margin: 0 0 16px;
   font-size: 22px;
   font-weight: 700;
 }
+
 .form {
   display: grid;
   gap: 12px;
 }
+
 .field input {
   width: 100%;
   padding: 13px 14px;
@@ -167,10 +191,12 @@ async function googleLogin() {
   font-size: 16px;
   background: #fafbff;
 }
+
 .field input:focus {
   border-color: #8aa8ff;
   background: #fff;
 }
+
 .primary {
   margin-top: 6px;
   background: #ffcf33;
@@ -181,50 +207,118 @@ async function googleLogin() {
   border-radius: 12px;
   cursor: pointer;
 }
+
 .sub-links {
   margin-top: 8px;
   display: flex;
   justify-content: space-between;
   font-size: 13px;
 }
+
 .sep {
   margin: 18px 0 10px;
   text-align: center;
   color: #9aa3af;
   font-size: 12px;
 }
+
 .sep span {
   background: #fff;
   padding: 0 8px;
 }
+
 .social {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
-.social button {
+
+.social-btn {
+  width: 200px;
+  height: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 10px;
   border-radius: 12px;
-  padding: 12px;
   cursor: pointer;
-  font-weight: 600;
+  border: none;
+  background: none;
+  padding: 0 16px;
   font-size: 14px;
+  font-weight: 600;
 }
-.icon {
-  width: 16px;
-  height: 16px;
-}
+
 .kakao {
   background: #fee500;
-  border: none;
-  color: #191919;
-  font-weight: 700;
+  color: rgba(0, 0, 0, 0.85);
+  font-family: 'Roboto', 'Noto Sans KR', sans-serif;
 }
-.google {
-  background: #fff;
-  border: 1px solid #e3e6ec;
+
+.kakao-icon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+}
+
+.kakao-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: #000000;
+}
+
+.kakao-label {
+  white-space: nowrap;
+}
+
+.gsi-material-button {
+  border-radius: 12px;
+  border: 1px solid #dadce0;
+  background-color: #fff;
+  font-family: 'Roboto', arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
   color: #202124;
+  letter-spacing: 0.1px;
+}
+
+.gsi-material-button:focus-visible {
+  outline: 3px solid rgba(66, 133, 244, 0.35);
+  outline-offset: 2px;
+}
+
+.gsi-material-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.gsi-material-button .gsi-material-button-content-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.gsi-material-button .gsi-material-button-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+}
+
+.gsi-material-button .gsi-material-button-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gsi-material-button .gsi-material-button-contents {
+  white-space: nowrap;
+}
+
+.gsi-material-button .gsi-material-button-state {
+  display: none;
 }
 </style>

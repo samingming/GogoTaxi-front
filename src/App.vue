@@ -6,23 +6,45 @@
       <router-view />
     </main>
 
-    <BottomTab v-if="!hideBottomTab" />
+    <Teleport to="body">
+      <BottomTab v-if="!hideBottomTab" />
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import BottomTab from '@/components/BottomTab.vue'
 
 const route = useRoute()
 
-// 로그인/회원가입/비번찾기 같은 페이지에서 탭 숨기고 싶으면 meta로 제어하는 게 가장 유연함
-const hideBottomTab = computed(() => {
-  // 1) 라우트 이름으로 간단히: return route.name === 'login'
-  // 2) meta로 더 확장 가능:
-  return Boolean(route.meta?.hideBottomNav)
+// Routes such as login/register set meta.hideBottomNav to hide the tab bar.
+const hideBottomTab = computed(() => Boolean(route.meta?.hideBottomNav))
+
+const VIEWPORT_VAR = '--browser-ui-bottom'
+
+function updateBrowserUiOffset() {
+  if (typeof window === 'undefined') return
+  const vv = window.visualViewport
+  const offset = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
+  document.documentElement.style.setProperty(VIEWPORT_VAR, `${offset}px`)
+}
+
+const handleViewportChange = () => updateBrowserUiOffset()
+
+onMounted(() => {
+  updateBrowserUiOffset()
+  if (typeof window === 'undefined' || !window.visualViewport) return
+  window.visualViewport.addEventListener('resize', handleViewportChange)
+  window.visualViewport.addEventListener('scroll', handleViewportChange)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined' || !window.visualViewport) return
+  window.visualViewport.removeEventListener('resize', handleViewportChange)
+  window.visualViewport.removeEventListener('scroll', handleViewportChange)
 })
 
 const lockContentScroll = computed(() => Boolean(route.meta?.lockScroll))
@@ -48,21 +70,39 @@ const contentStyle = computed(() => {
 </script>
 
 <style>
-:root { --header-h: 56px; --tab-h: 64px; --app-vh: 1vh; }
-* { box-sizing: border-box; }
-html, body, #app { height: 100%; margin: 0; overflow: hidden; }
+:root {
+  --header-h: 56px;
+  --tab-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --browser-ui-bottom: 0px;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+/* Hide default scrollbars but keep scrollability */
+::-webkit-scrollbar {
+  display: none;
+}
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 
 .app-shell {
   position: relative;
-  height: calc(var(--app-vh, 1vh) * 100);
-  background: #fff;
-  overflow: hidden;
+  min-height: 100%;
+  background: #3a2e20;
 }
 .app-content {
   padding-top: var(--header-h);
-  padding-bottom: var(--tab-h); /* 기본값(탭 보일 때) */
-  height: calc((var(--app-vh, 1vh) * 100) - var(--header-h));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--tab-h) + var(--safe-bottom) + var(--browser-ui-bottom)); /* spacing when tab is visible */
+  min-height: calc(100dvh - var(--header-h));
 }
 </style>

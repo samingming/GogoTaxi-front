@@ -57,7 +57,7 @@
           {{ selectedSeat }}번 좌석을 선택했어요. 아래 버튼으로 확정해 주세요.
         </p>
         <p v-else key="selection-hint" class="seat-card__selection--hint">
-          선택 가능한 좌석은 총 네 자리입니다. 원하는 곳을 눌러주세요.
+          선택 가능한 좌석은 총 네 자리입니다.<br>원하는 곳을 눌러 주세요.
         </p>
       </transition>
 
