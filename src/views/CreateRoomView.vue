@@ -197,7 +197,7 @@
 
     <TimePicker
       v-if="timePickerVisible"
-      :period="timePickerPeriod === '??' ? 'AM' : 'PM'"
+      :period="timePickerPeriod === '오전' ? 'AM' : 'PM'"
       :hour="timePickerHour"
       :minute="timePickerMinute"
       @cancel="closeTimePicker"
@@ -254,6 +254,10 @@ function getCurrentSeoulTime() {
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.978 }
 const DEFAULT_ROOM_CAPACITY = 4
 const minuteOptions = ['00', '10', '20', '30', '40', '50'] as const
+type MinuteOption = (typeof minuteOptions)[number]
+function isMinuteOption(value: string): value is MinuteOption {
+  return (minuteOptions as readonly string[]).includes(value)
+}
 const router = useRouter()
 
 const availablePaymentMethods: StoredPaymentMethod[] = createPaymentSections().flatMap((section) =>
@@ -315,7 +319,7 @@ const mapPickerPosition = reactive({ ...DEFAULT_CENTER })
 const timePickerVisible = ref(false)
 const timePickerPeriod = ref<'오전' | '오후'>('오전')
 const timePickerHour = ref('08')
-const timePickerMinute = ref('00')
+const timePickerMinute = ref<MinuteOption>('00')
 setTimePickerState(form.departureTime)
 
 const errorMessage = ref('')
@@ -371,7 +375,7 @@ function setTimePickerState(value: string) {
   timePickerPeriod.value = period
   timePickerHour.value = hour12.toString().padStart(2, '0')
   const minuteCandidate = (minuteToken ?? '00').padStart(2, '0')
-  timePickerMinute.value = minuteOptions.includes(minuteCandidate) ? minuteCandidate : '00'
+  timePickerMinute.value = isMinuteOption(minuteCandidate) ? minuteCandidate : '00'
 }
 
 const displayDepartureTime = computed(() => {
@@ -599,7 +603,7 @@ function confirmTimePicker() {
 function handleEmbeddedTimeConfirm(payload: { period: 'AM' | 'PM'; hour: string; minute: string }) {
   timePickerPeriod.value = payload.period === 'AM' ? '오전' : '오후'
   timePickerHour.value = payload.hour
-  timePickerMinute.value = payload.minute
+  timePickerMinute.value = isMinuteOption(payload.minute) ? payload.minute : '00'
   confirmTimePicker()
 }
 
