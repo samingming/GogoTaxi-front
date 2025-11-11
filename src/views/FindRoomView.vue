@@ -171,6 +171,7 @@ import TimePicker from '@/components/TimePicker.vue'
 import SortOptionsModal from '@/components/SortOptionsModal.vue'
 import { mockRooms } from '@/data/mockRooms'
 import type { RoomPreview, GeoPoint } from '@/types/rooms'
+import { useRoomMembership } from '@/composables/useRoomMembership'
 
 const COLLAPSED_SHEET = 22
 const MID_SHEET = 60
@@ -179,6 +180,7 @@ const SHEET_STATES = [COLLAPSED_SHEET, MID_SHEET, MAX_SHEET] as const
 const SNAP_THRESHOLD = 6
 
 const router = useRouter()
+const { joinRoom: rememberRoom } = useRoomMembership()
 const rooms = ref<RoomPreview[]>([...mockRooms])
 type SortMode = 'default' | 'nearest-departure' | 'nearest-arrival' | 'departure-time'
 type SelectedLocation = { position: GeoPoint; label: string }
@@ -690,6 +692,7 @@ function selectRoom(room: RoomPreview) {
 }
 
 function joinRoom(room: RoomPreview) {
+  rememberRoom(room)
   router.push({ name: 'seat-selection', query: { roomId: room.id } })
 }
 

@@ -11,6 +11,8 @@ export type User = {
   terms: boolean
 }
 
+export type AuthProfile = Pick<User, 'id' | 'name'>
+
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const USERS_KEY = 'gtx_users'
@@ -128,6 +130,17 @@ export function logout() {
   const storage = getStorage()
   storage.removeItem(TOKEN_KEY)
   storage.removeItem(CURRENT_KEY)
+}
+
+export function getCurrentUser(): AuthProfile | null {
+  const storage = getStorage()
+  const raw = storage.getItem(CURRENT_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as AuthProfile
+  } catch {
+    return null
+  }
 }
 
 export function isAuthed() {

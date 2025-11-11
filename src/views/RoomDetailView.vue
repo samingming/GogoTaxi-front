@@ -125,24 +125,30 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getRoomById, mockRooms } from '@/data/mockRooms'
 import type { RoomPreview } from '@/types/rooms'
 import RouteMapBox from '@/components/RouteMapBox.vue'
+import { useRoomMembership } from '@/composables/useRoomMembership'
 
 const route = useRoute()
 const router = useRouter()
 const fallbackRoomId = mockRooms[0]?.id ?? ''
+const { joinedRooms, leaveRoom: abandonRoom, updateSeat, setActiveRoom, syncRoomSnapshot } =
+  useRoomMembership()
 
 const roomId = computed(() => (route.params.id as string | undefined) ?? fallbackRoomId)
-const room = computed<RoomPreview | null>(() => getRoomById(roomId.value) ?? null)
-const seatNumber = computed(() => {
+const membership = computed(() => joinedRooms.value.find(entry => entry.roomId === roomId.value) ?? null)
+const room = computed<RoomPreview | null>(() => getRoomById(roomId.value) ?? membership.value?.roomSnapshot ?? null)
+const seatFromQuery = computed(() => {
   const seatQuery = route.query.seat
   if (!seatQuery) return null
   const seat = Array.isArray(seatQuery) ? seatQuery[0] : seatQuery
-  return Number(seat)
+  const parsed = Number(seat)
+  return Number.isNaN(parsed) ? null : parsed
 })
+const seatNumber = computed(() => membership.value?.seatNumber ?? seatFromQuery.value)
 
 const participants = computed(() => [
   { id: 'p1', name: '이유진', initials: 'YJ', role: '방장', seat: 1 },
@@ -168,6 +174,9 @@ function changeSeat() {
 }
 
 function leaveRoom() {
+  if (roomId.value) {
+    abandonRoom(roomId.value)
+  }
   router.push({ name: 'find-room' })
 }
 
@@ -210,6 +219,36 @@ function formatFare(amount?: number) {
   if (amount == null) return '확정 전'
   return `₩ ${amount.toLocaleString('ko-KR')}`
 }
+
+watch(
+  () => roomId.value,
+  id => {
+    if (id) {
+      setActiveRoom(id)
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => room.value,
+  value => {
+    if (roomId.value && value) {
+      syncRoomSnapshot(roomId.value, value)
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  [() => roomId.value, () => seatFromQuery.value],
+  ([id, seat]) => {
+    if (id && typeof seat === 'number') {
+      updateSeat(id, seat)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
