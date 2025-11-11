@@ -17,6 +17,19 @@
         </div>
 
         <div class="field">
+          <input
+            v-model.trim="phone"
+            type="tel"
+            inputmode="tel"
+            placeholder="전화번호 (- 없이 입력)"
+            autocomplete="tel-national"
+          />
+        </div>
+        <div class="field">
+          <input v-model="birthDate" type="date" placeholder="생년월일" />
+        </div>
+
+        <div class="field">
           <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
         </div>
         <div class="field">
@@ -74,6 +87,8 @@ const name = ref('')
 const userid = ref('')
 const pw = ref('')
 const pw2 = ref('')
+const phone = ref('')
+const birthDate = ref('')
 const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
@@ -87,16 +102,21 @@ function checkId() {
 }
 
 function submit() {
-  if (!name.value || !userid.value || !pw.value || !pw2.value) {
-    alert('필수 정보를 입력해 주세요.')
+  if (!name.value || !userid.value || !pw.value || !pw2.value || !phone.value || !birthDate.value) {
+    alert('?? ??? ?? ??? ???.')
     return
   }
   if (pw.value !== pw2.value) {
-    alert('비밀번호가 일치하지 않습니다.')
+    alert('????? ???? ????.')
+    return
+  }
+  const normalizedPhone = phone.value.replace(/\D/g, '')
+  if (normalizedPhone.length < 9) {
+    alert('????? ??? ??? ???.')
     return
   }
   if (!terms.value) {
-    alert('이용약관 동의는 필수입니다.')
+    alert('???? ??? ?????.')
     return
   }
 
@@ -105,17 +125,20 @@ function submit() {
       id: userid.value,
       name: name.value,
       password: pw.value,
+      phone: normalizedPhone,
+      birthDate: birthDate.value,
       gender: gender.value,
       sms: sms.value,
       terms: terms.value,
     })
-    alert('회원가입이 완료되었습니다!')
+    alert('????? ???????!')
     router.push({ name: 'login' })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '회원가입에 실패했습니다.'
+    const msg = err instanceof Error ? err.message : '????? ??????.'
     alert(msg)
   }
 }
+
 </script>
 
 <style scoped>

@@ -195,60 +195,14 @@
       </div>
     </div>
 
-    <div v-if="timePickerVisible" class="time-picker">
-      <div class="time-picker__backdrop" @click="closeTimePicker" aria-hidden="true"></div>
-      <div class="time-picker__panel" role="dialog" aria-modal="true">
-        <header class="time-picker__header">
-          <h3>출발 시간을 선택하세요</h3>
-          <p>아래 옵션에서 원하는 시간을 직접 선택해 주세요.</p>
-        </header>
-        <div class="time-picker__body">
-          <div class="time-picker__display">
-            <span class="time-display__period">{{ timePickerPeriod }}</span>
-            <span class="time-display__clock">{{ timePickerHour }}:{{ timePickerMinute }}</span>
-          </div>
-          <div class="time-picker__selectors">
-            <div class="time-column time-column--period">
-              <p>구분</p>
-              <div class="chip-group">
-                <button
-                  v-for="option in periodOptions"
-                  :key="option"
-                  type="button"
-                  class="selector-chip"
-                  :class="{ 'is-active': timePickerPeriod === option }"
-                  @click="timePickerPeriod = option"
-                >
-                  {{ option }}
-                </button>
-              </div>
-            </div>
-            <div class="time-column">
-              <p>시간</p>
-              <select class="time-select" v-model="timePickerHour">
-                <option v-for="hour in hourOptions" :key="hour" :value="hour">
-                  {{ hour }}
-                </option>
-              </select>
-            </div>
-            <div class="time-column">
-              <p>분</p>
-              <select class="time-select" v-model="timePickerMinute">
-                <option v-for="minute in minuteOptions" :key="minute" :value="minute">
-                  {{ minute }}
-                </option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <footer class="time-picker__actions">
-          <button type="button" class="ghost-button" @click="closeTimePicker">취소</button>
-          <button type="button" class="primary-button" @click="confirmTimePicker">
-            확인
-          </button>
-        </footer>
-      </div>
-    </div>
+    <TimePicker
+      v-if="timePickerVisible"
+      :period="timePickerPeriod === '??' ? 'AM' : 'PM'"
+      :hour="timePickerHour"
+      :minute="timePickerMinute"
+      @cancel="closeTimePicker"
+      @confirm="handleEmbeddedTimeConfirm"
+    />
   </section>
 </template>
 
@@ -256,6 +210,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
+import TimePicker from '@/components/TimePicker.vue'
 import type { RoomPreview } from '@/types/rooms'
 import { loadKakaoMaps, type KakaoNamespace } from '@/services/kakaoMaps'
 import {
@@ -298,9 +253,7 @@ function getCurrentSeoulTime() {
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.978 }
 const DEFAULT_ROOM_CAPACITY = 4
-const periodOptions = ['오전', '오후'] as const
-const hourOptions = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'] as const
-const minuteOptions = Array.from({ length: 60 }, (_, idx) => idx.toString().padStart(2, '0')) as string[]
+const minuteOptions = ['00', '10', '20', '30', '40', '50'] as const
 const router = useRouter()
 
 const availablePaymentMethods: StoredPaymentMethod[] = createPaymentSections().flatMap((section) =>
@@ -641,6 +594,13 @@ function confirmTimePicker() {
   const hourString = hour.toString().padStart(2, '0')
   form.departureTime = `${hourString}:${timePickerMinute.value}`
   timePickerVisible.value = false
+}
+
+function handleEmbeddedTimeConfirm(payload: { period: 'AM' | 'PM'; hour: string; minute: string }) {
+  timePickerPeriod.value = payload.period === 'AM' ? '오전' : '오후'
+  timePickerHour.value = payload.hour
+  timePickerMinute.value = payload.minute
+  confirmTimePicker()
 }
 
 function reverseGeocode(position: { lat: number; lng: number }) {
@@ -1216,147 +1176,6 @@ fieldset.field {
   justify-content: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
-}
-
-.time-picker {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 21;
-}
-
-.time-picker__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.time-picker__panel {
-  position: relative;
-  width: min(460px, 92vw);
-  background: #ffffff;
-  border-radius: 32px;
-  padding: 1.6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.time-picker__header h3 {
-  margin: 0;
-  font-size: 1.2rem;
-}
-
-.time-picker__header p {
-  margin: 0.35rem 0 0;
-  color: var(--color-text-muted);
-  font-size: 0.92rem;
-}
-
-.time-picker__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.time-picker__display {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 20px;
-  padding: 0.9rem 1.2rem;
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: 1.4rem;
-  font-weight: 700;
-  background: #fff4d4;
-}
-
-.time-display__period {
-  font-size: 1rem;
-  color: var(--color-text-muted);
-}
-
-.time-picker__selectors {
-  display: grid;
-  grid-template-columns: 1.15fr repeat(2, minmax(90px, 0.85fr));
-  gap: 0.75rem;
-  align-items: stretch;
-}
-
-.time-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.time-column .chip-group {
-  flex-wrap: nowrap;
-}
-
-.time-column p {
-  margin: 0;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.chip-group {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.selector-chip {
-  flex: 1;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 0.5rem 0.7rem;
-  background: #f7f8fd;
-  color: var(--color-text-strong);
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
-}
-
-.selector-chip.is-active {
-  background: var(--color-button);
-  color: var(--color-button-text);
-}
-
-.time-select {
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  padding: 0.65rem 0.85rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  background: #f8f9ff;
-  color: var(--color-text-strong);
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #c4c7d1 50%),
-    linear-gradient(135deg, #c4c7d1 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% - 4px),
-    calc(100% - 12px) calc(50% - 4px);
-  background-size: 6px 6px;
-  background-repeat: no-repeat;
-}
-
-.time-select:focus {
-  outline: none;
-  border-color: var(--color-button);
-}
-
-.time-picker__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
 }
 
 

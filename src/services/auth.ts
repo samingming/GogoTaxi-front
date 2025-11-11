@@ -4,6 +4,8 @@ export type User = {
   id: string
   name: string
   password: string
+  phone: string
+  birthDate: string
   gender: 'M' | 'F' | ''
   sms: boolean
   terms: boolean
@@ -44,8 +46,26 @@ function getStorage(): StorageLike {
   if (storage.getItem(USERS_KEY)) return
 
   const mock: User[] = [
-    { id: 'test1', name: '테스터', password: '1111', gender: 'M', sms: false, terms: true },
-    { id: 'kim', name: '김고고', password: '1234', gender: 'F', sms: true, terms: true },
+    {
+      id: 'test1',
+      name: '???',
+      password: '1111',
+      phone: '01000000000',
+      birthDate: '1990-01-01',
+      gender: 'M',
+      sms: false,
+      terms: true,
+    },
+    {
+      id: 'kim',
+      name: '???',
+      password: '1234',
+      phone: '01012345678',
+      birthDate: '1995-05-12',
+      gender: 'F',
+      sms: true,
+      terms: true,
+    },
   ]
   storage.setItem(USERS_KEY, JSON.stringify(mock))
 })()
@@ -161,7 +181,7 @@ export function socialLogin(
   if (index >= 0) {
     const existing = users[index]
     if (!existing) {
-      throw new Error('사용자 정보를 찾을 수 없습니다.')
+      throw new Error('??? ??? ?? ? ????.')
     }
     user = existing
     if (!user.name && profile.name) {
@@ -174,6 +194,8 @@ export function socialLogin(
       id: profile.id,
       name: profile.name || `${provider} 사용자`,
       password: '',
+      phone: '',
+      birthDate: '',
       gender: '',
       sms: false,
       terms: false,
@@ -181,7 +203,6 @@ export function socialLogin(
     users.push(user)
     saveUsers(users)
   }
-
   if (!user.terms) {
     const pending: PendingSocial = {
       id: user.id,
