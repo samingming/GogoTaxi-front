@@ -74,7 +74,15 @@ declare namespace kakao {
 
     namespace event {
       type MouseEvent = { latLng: LatLng }
-      function addListener(target: any, type: string, handler: (event: MouseEvent) => void): void
+      type EventTarget =
+        | Map
+        | Marker
+        | Polyline
+        | Polygon
+        | CustomOverlay
+        | unknown
+
+      function addListener(target: EventTarget, type: string, handler: (event: MouseEvent) => void): void
     }
   }
 }
