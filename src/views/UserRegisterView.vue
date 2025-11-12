@@ -17,23 +17,24 @@
         </div>
 
         <div class="field">
-          <input
-            v-model.trim="phone"
-            type="tel"
-            inputmode="tel"
-            placeholder="전화번호 (- 없이 입력)"
-            autocomplete="tel-national"
-          />
-        </div>
-        <div class="field">
-          <input v-model="birthDate" type="date" placeholder="생년월일" />
-        </div>
-
-        <div class="field">
           <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
         </div>
         <div class="field">
           <input v-model="pw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" />
+        </div>
+
+        <div class="field">
+          <input
+            v-model="phone"
+            type="tel"
+            inputmode="tel"
+            placeholder="010-0000-0000"
+            autocomplete="tel-national"
+            @input="formatPhoneInput"
+          />
+        </div>
+        <div class="field">
+          <input v-model="birthDate" type="date" placeholder="생년월일" />
         </div>
 
         <div class="gender-group">
@@ -96,34 +97,93 @@ const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
 
-function checkId() {
-  if (!userid.value) {
+function formatPhoneInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  const digitsOnly = target.value.replace(/\D/g, '').slice(0, 11)
+
+  if (digitsOnly.length <= 3) {
+    phone.value = digitsOnly
+    return
+  }
+  if (digitsOnly.length <= 7) {
+    phone.value = `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3)}`
+    return
+  }
+  phone.value = `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3, 7)}-${digitsOnly.slice(7)}`
+}
+
+async function checkId() {
+  const trimmedId = userid.value.trim()
+  if (!trimmedId) {
     alert('아이디를 입력해 주세요.')
     return
   }
-  // TODO: 이 부분도 나중에 백엔드 API(아이디 중복 확인)로 구현하는 것이 좋습니다.
-  alert(`'${userid.value}' 아이디는 사용 가능한 예시입니다.`)
+
+  try {
+    const response = await axios.get('http://localhost:3000/api/auth/check-id', {
+      params: { userid: trimmedId },
+    })
+
+    const available =
+      (typeof response.data?.available === 'boolean' && response.data.available) ||
+      response.data?.status === 'available'
+
+    if (available) {
+      alert(`'${trimmedId}' 사용 가능한 아이디입니다.`)
+    } else {
+      alert(`'${trimmedId}' 사용 중인 아이디입니다.`)
+    }
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 404) {
+        alert(`'${trimmedId}' 사용 중인 아이디입니다.`)
+        return
+      }
+
+      const backendMessage =
+        (err.response?.data && typeof err.response.data === 'object' && 'error' in err.response.data
+          ? (err.response.data as { error?: string }).error
+          : undefined) || err.message
+
+      alert(backendMessage || '아이디 중복 확인 중 오류가 발생했습니다.')
+      return
+    }
+
+    alert(err instanceof Error ? err.message : '아이디 중복 확인 중 알 수 없는 오류가 발생했습니다.')
+  }
 }
 
 // 3. submit 함수를 async로 변경
 async function submit() {
-  if (!name.value || !userid.value || !pw.value || !pw2.value) {
-    alert('필수 정보를 입력해 주세요.')
+  const filledAllFields =
+    name.value.trim() &&
+    userid.value.trim() &&
+    phone.value.trim() &&
+    birthDate.value &&
+    pw.value &&
+    pw2.value &&
+    gender.value
+
+  if (!filledAllFields) {
+    alert('모든 정보를 입력해 주세요.')
     return
   }
   if (pw.value !== pw2.value) {
-    alert('????? ???? ????.')
+    alert('비밀번호가 일치하지 않습니다.')
     return
   }
   const normalizedPhone = phone.value.replace(/\D/g, '')
   if (normalizedPhone.length < 9) {
-    alert('????? ??? ??? ???.')
+    alert('전화번호 입력은 필수입니다.')
     return
   }
   if (!terms.value) {
-    alert('???? ??? ?????.')
+    alert('이용약관 동의는 필수입니다.')
     return
   }
+
+  const phoneToSend = phone.value.trim() || null
+  const birthDateToSend = birthDate.value || null
 
   // 4. 기존 try...catch 블록을 API 호출 코드로 변경
   try {
@@ -131,10 +191,12 @@ async function submit() {
     const response = await axios.post('http://localhost:3000/api/auth/register', {
       name: name.value,
       userid: userid.value,
-      pw: pw.value, // 백엔드에서 'pw'로 받고 있습니다.
+      pw: pw.value,
       gender: gender.value || null,
       sms: sms.value,
       terms: terms.value,
+      phone: phoneToSend,
+      birthDate: birthDateToSend,
     })
 
     console.log('백엔드 응답:', response.data) // 성공 로그

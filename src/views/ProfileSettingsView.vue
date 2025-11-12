@@ -178,6 +178,18 @@ const placeholders = {
   passwordConfirm: "\uBE44\uBC00\uBC88\uD638\uB97C \uD55C \uBC88 \uB354 \uC785\uB825\uD558\uC138\uC694",
 };
 
+const PHONE_FALLBACK_TEXT = '???? ???';
+
+function formatPhoneNumber(raw?: string | null) {
+  const digits = (raw ?? "").replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  if (digits.length <= 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 const account = reactive({
   nickname: "로딩 중...",
   phone: "로딩 중...",
@@ -239,7 +251,7 @@ async function fetchUserProfile() {
     const data = response.data;
 
     account.nickname = data.name || '닉네임 미설정';
-    account.phone = data.phone || '전화번호 미설정';
+    account.phone = formatPhoneNumber(data.phone) || PHONE_FALLBACK_TEXT;
 
     account.username = (typeof data.userid === 'string' && data.userid)
       ? data.userid
@@ -295,7 +307,7 @@ const startEdit = (field: EditableField) => {
   if (field === "nickname") {
     editForm.nickname = account.nickname;
   } else if (field === "phone") {
-    editForm.phone = account.phone;
+    editForm.phone = account.phone === PHONE_FALLBACK_TEXT ? '' : account.phone;
   } else {
     editForm.password = "";
     editForm.passwordConfirm = "";
@@ -320,7 +332,7 @@ const saveNickname = () => {
 };
 
 const savePhone = () => {
-  const nextPhone = editForm.phone.trim();
+  const nextPhone = formatPhoneNumber(editForm.phone);
   if (!nextPhone) {
     errors.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
     return;

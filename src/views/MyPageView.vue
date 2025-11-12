@@ -66,6 +66,16 @@ const labels = {
 
 type GenderValue = "male" | "female" | "M" | "F" | "\uB0A8\uC131" | "\uC5EC\uC131" | "";
 
+function formatPhoneNumber(raw?: string | null) {
+  const digits = (raw ?? "").replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  if (digits.length <= 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 // 2. ⭐️ 하드코딩된 user 값을 '로딩 중...'으로 변경
 const user = ref({
   nickname: "로딩 중...",
@@ -106,7 +116,7 @@ async function fetchUserProfile() {
 
     // 7. ⭐️ API 응답으로 user.value 객체 덮어쓰기
     user.value.nickname = data.name || '닉네임 미설정';
-    user.value.phone = data.phone || '전화번호 미설정';
+    user.value.phone = data.phone || '';
     user.value.gender = data.gender || ''; // genderIconSrc가 알아서 처리함
 
   } catch (error: unknown) {
@@ -123,7 +133,10 @@ const displayNickname = computed(() => {
 
 const displayPhone = computed(() => {
   const phone = user.value.phone?.trim();
-  return phone?.length ? phone : labels.noPhone;
+  if (!phone) return labels.noPhone;
+  if (phone.includes("\uB85C\uB529")) return phone;
+  const formatted = formatPhoneNumber(phone);
+  return formatted || labels.noPhone;
 });
 
 const genderIconSrc = computed(() => {
