@@ -45,7 +45,7 @@ const routes = [
     path: '/my-rooms',
     name: 'my-rooms',
     component: () => import('@/views/MyRoomsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, flushBottomNav: true },
   },
   {
     path: '/mypage',
@@ -87,7 +87,7 @@ const routes = [
     path: '/seat-selection',
     name: 'seat-selection',
     component: () => import('@/views/SeatSelectionView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, lockScroll: true },
   },
   {
     path: '/rooms/:id',

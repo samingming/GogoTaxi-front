@@ -17,6 +17,19 @@
         </div>
 
         <div class="field">
+          <input
+            v-model.trim="phone"
+            type="tel"
+            inputmode="tel"
+            placeholder="전화번호 (- 없이 입력)"
+            autocomplete="tel-national"
+          />
+        </div>
+        <div class="field">
+          <input v-model="birthDate" type="date" placeholder="생년월일" />
+        </div>
+
+        <div class="field">
           <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
         </div>
         <div class="field">
@@ -77,6 +90,8 @@ const name = ref('')
 const userid = ref('')
 const pw = ref('')
 const pw2 = ref('')
+const phone = ref('')
+const birthDate = ref('')
 const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
@@ -97,11 +112,16 @@ async function submit() {
     return
   }
   if (pw.value !== pw2.value) {
-    alert('비밀번호가 일치하지 않습니다.')
+    alert('????? ???? ????.')
+    return
+  }
+  const normalizedPhone = phone.value.replace(/\D/g, '')
+  if (normalizedPhone.length < 9) {
+    alert('????? ??? ??? ???.')
     return
   }
   if (!terms.value) {
-    alert('이용약관 동의는 필수입니다.')
+    alert('???? ??? ?????.')
     return
   }
 
@@ -132,6 +152,7 @@ async function submit() {
     alert(msg)
   }
 }
+
 </script>
 
 <style scoped>
