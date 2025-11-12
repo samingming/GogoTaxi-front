@@ -83,33 +83,69 @@ const route = useRoute()
 const id = ref('')
 const pw = ref('')
 
+type BackendUserPayload = {
+  userid?: string
+  id?: string
+  name?: string
+  phone?: string
+  gender?: string
+  sms?: boolean
+  terms?: boolean
+  [key: string]: unknown
+}
+
+type LoginResponsePayload = {
+  token?: string
+  accessToken?: string
+  jwt?: string
+  user?: BackendUserPayload
+  profile?: BackendUserPayload
+}
+
+type StoredUser = BackendUserPayload & { userid: string }
+
 function resolveRedirect() {
   return (route.query.redirect as string) || '/home'
 }
 
+function normalizeUser(payload: unknown, fallbackUserid: string): StoredUser {
+  if (payload && typeof payload === 'object') {
+    const normalized = payload as BackendUserPayload
+    const userid = normalized.userid || normalized.id || fallbackUserid
+    return { ...normalized, userid }
+  }
+  return { userid: fallbackUserid }
+}
+
 // 2. login 함수를 백엔드 API 호출로 수정
 async function login() {
-  if (!id.value || !pw.value) {
+  const trimmedId = id.value.trim()
+  if (!trimmedId || !pw.value) {
     alert('아이디와 비밀번호를 입력해 주세요.')
     return
   }
   try {
-    // ⭐️ 백엔드 로그인 API 호출 ⭐️
-    const response = await apiClient.post('/', {
-      id: id.value,
+    // 백엔드 로그인 API 호출
+    const response = await apiClient.post<LoginResponsePayload>('/api/auth/login', {
+      userid: trimmedId,
       pw: pw.value,
     })
 
-    // (임시) 로그인 성공 시 토큰 저장
-    console.log('로그인 성공:', response.data.message)
-    localStorage.setItem('auth_token', `real-token-${Date.now()}`)
-    localStorage.setItem('auth_user', JSON.stringify(response.data.user))
+    const data = response.data ?? {}
+    const token = data.token ?? data.accessToken ?? data.jwt
+    if (!token) {
+      throw new Error('로그인 토큰을 확인할 수 없습니다.')
+    }
+    const user = normalizeUser(data.user ?? data.profile, trimmedId)
 
-    router.push(resolveRedirect())
+    localStorage.setItem('auth_token', token)
+    localStorage.setItem('auth_user', JSON.stringify(user))
+
+    router.replace(resolveRedirect())
 
   } catch (err: unknown) { // 'any' 대신 'unknown'
     let msg = '로그인에 실패했어요.'
-    // 백엔드가 보낸 에러 메시지(예: "비밀번호가 일치하지 않습니다.") 표시
+    // 백엔드가 내려주는 메시지(예: "비밀번호가 일치하지 않습니다.") 우선 사용
     if (axios.isAxiosError(err) && err.response?.data?.error) {
       msg = err.response.data.error
     } else if (err instanceof Error) {
