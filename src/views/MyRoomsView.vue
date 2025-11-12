@@ -1,12 +1,12 @@
 <template>
   <section class="my-rooms">
     <header class="my-rooms__hero">
-      <p class="hero__eyebrow">내 참여 현황</p>
-      <h1>내가 들어간 방</h1>
-      <p class="hero__desc">
-        함께 달릴 방들을 한눈에 확인하고 좌석이나 배차 정보를 빠르게 살펴보세요.
+      <p class="my-rooms__eyebrow">참여 중인 방</p>
+      <h1>나의 방</h1>
+      <p class="my-rooms__desc">
+        방찾기에서 합류한 방이 여기에 정리돼요. 좌석을 확정하거나 방 세부 정보로 바로 들어갈 수 있어요.
       </p>
-      <button type="button" class="hero__action" @click="goFindRoom">방 찾기 바로가기</button>
+      <button type="button" class="hero-btn" @click="goFindRoom">다른 방 찾기</button>
     </header>
 
     <section v-if="roomCards.length" class="room-list">
@@ -26,32 +26,27 @@
             <dd>{{ entry.room.time }}</dd>
           </div>
           <div>
-            <dt>참여 일시</dt>
+            <dt>참여일</dt>
             <dd>{{ entry.joinedAtLabel }}</dd>
           </div>
           <div>
-            <dt>좌석</dt>
-            <dd>{{ entry.seatNumber ? `${entry.seatNumber}번` : '미배정' }}</dd>
+            <dt>내 좌석</dt>
+            <dd>{{ entry.seatNumber ? `${entry.seatNumber}번` : '미선택' }}</dd>
           </div>
         </dl>
         <footer class="room-card__actions">
           <button type="button" class="btn btn--primary" @click="enterRoom(entry)">
-            {{ entry.seatNumber ? '방 입장' : '좌석 선택하기' }}
+            {{ entry.seatNumber ? '방 입장' : '좌석 먼저 선택' }}
           </button>
           <button type="button" class="btn btn--ghost" @click="dropRoom(entry.roomId)">
-            참여 취소
+            방 나가기
           </button>
         </footer>
       </article>
     </section>
 
     <section v-else class="room-empty">
-      <div class="room-empty__card">
-        <p class="room-empty__emoji">🚕</p>
-        <p class="room-empty__title">아직 참여한 방이 없어요.</p>
-        <p class="room-empty__desc">지금 방을 찾아 새로운 동승자들과 일정을 맞춰보세요.</p>
-        <button type="button" class="hero__action" @click="goFindRoom">방 찾으러 가기</button>
-      </div>
+      <p class="room-empty__title">아직 참여한 방이 없어요.</p>
     </section>
   </section>
 </template>
@@ -68,7 +63,7 @@ const { joinedRooms, leaveRoom, setActiveRoom } = useRoomMembership()
 
 const STATUS_META: Record<NonNullable<RoomPreview['status']>, { label: string }> = {
   recruiting: { label: '모집 중' },
-  dispatching: { label: '배차 진행' },
+  dispatching: { label: '배차 중' },
   success: { label: '배차 완료' },
   failed: { label: '배차 실패' },
 }
@@ -132,71 +127,74 @@ function dropRoom(roomId: string) {
 <style scoped>
 .my-rooms {
   min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
-  padding: clamp(20px, 4vw, 36px);
-  background: linear-gradient(180deg, #fff9eb 0%, #fff4d6 60%, #fff 100%);
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+  padding: clamp(28px, 6vw, 60px) clamp(18px, 5vw, 54px) clamp(28px, 5vh, 48px);
+  background: #fff7e1;
+  color: #3b2600;
+  display: grid;
+  gap: 28px;
+  grid-template-rows: auto 1fr;
+  align-content: start;
 }
 
 .my-rooms__hero {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 28px;
-  padding: clamp(20px, 4vw, 32px);
-  box-shadow: 0 16px 50px rgba(250, 204, 21, 0.2);
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 10px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid rgba(228, 180, 97, 0.6);
 }
 
-.hero__eyebrow {
+.my-rooms__eyebrow {
   margin: 0;
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f59e0b;
+  color: rgba(217, 119, 6, 0.9);
 }
 
 .my-rooms__hero h1 {
   margin: 0;
-  font-size: clamp(24px, 5vw, 32px);
-  color: #0f172a;
+  font-size: clamp(26px, 5vw, 34px);
+  color: #3b2600;
 }
 
-.hero__desc {
+.my-rooms__desc {
   margin: 0;
-  color: #91540c;
-  font-size: 14px;
+  color: #6b3b00;
+  font-size: 15px;
   line-height: 1.6;
 }
 
-.hero__action {
-  align-self: flex-start;
-  border: none;
-  border-radius: 999px;
+.hero-btn {
+  justify-self: flex-start;
   padding: 10px 20px;
-  font-size: 14px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
   font-weight: 700;
-  background: #fdd651;
-  color: #7c2d12;
+  font-size: 14px;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(247, 144, 9, 0.3);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.hero-btn:hover {
+  background: rgba(250, 204, 21, 0.32);
+  color: #92400e;
 }
 
 .room-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  gap: 18px;
 }
 
 .room-card {
   border-radius: 24px;
-  padding: clamp(18px, 3vw, 26px);
-  background: #fffdfa;
-  border: 1px solid rgba(249, 186, 20, 0.4);
+  padding: clamp(16px, 3.2vw, 24px) clamp(20px, 4vw, 28px) clamp(22px, 4vw, 28px);
+  background: #fff;
+  border: 1px solid #f3d193;
   display: grid;
   gap: 16px;
-  box-shadow: 0 14px 25px rgba(149, 72, 0, 0.08);
+  align-self: start;
 }
 
 .room-card__header h2 {
@@ -208,7 +206,6 @@ function dropRoom(roomId: string) {
 .room-card__route {
   margin: 0;
   color: #a16207;
-  font-weight: 600;
 }
 
 .room-card__status {
@@ -224,14 +221,14 @@ function dropRoom(roomId: string) {
   color: #b45309;
 }
 
-.room-card__status--dispatching {
-  background: rgba(254, 240, 138, 0.85);
-  color: #a16207;
-}
-
 .room-card__status--success {
   background: rgba(187, 247, 208, 0.9);
   color: #15803d;
+}
+
+.room-card__status--dispatching {
+  background: rgba(254, 240, 138, 0.9);
+  color: #a16207;
 }
 
 .room-card__status--failed {
@@ -262,14 +259,13 @@ function dropRoom(roomId: string) {
   margin: 0;
   font-size: 15px;
   color: #4b2c06;
-  font-weight: 600;
 }
 
 .room-card__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .btn {
@@ -279,13 +275,14 @@ function dropRoom(roomId: string) {
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .btn--primary {
   background: rgba(251, 191, 36, 0.4);
   color: #92400e;
-  box-shadow: 0 10px 20px rgba(251, 191, 36, 0.35);
 }
 
 .btn--ghost {
@@ -300,42 +297,17 @@ function dropRoom(roomId: string) {
 
 .room-empty {
   display: flex;
+  align-items: center;
   justify-content: center;
-}
-
-.room-empty__card {
-  background: #fffef6;
-  border-radius: 24px;
-  padding: clamp(24px, 5vw, 40px);
+  min-height: 0;
   text-align: center;
-  border: 1px dashed rgba(249, 186, 20, 0.5);
-  max-width: 420px;
-  display: grid;
-  gap: 10px;
-}
-
-.room-empty__emoji {
-  margin: 0;
-  font-size: 32px;
 }
 
 .room-empty__title {
   margin: 0;
   font-size: 20px;
-  font-weight: 700;
-  color: #7c2d12;
-}
-
-.room-empty__desc {
-  margin: 0;
-  font-size: 14px;
-  color: #9a6a16;
-}
-
-@media (min-width: 960px) {
-  .my-rooms {
-    border-radius: 28px;
-    overflow: hidden;
-  }
+  line-height: 1.6;
+  font-weight: 600;
+  color: #a16207;
 }
 </style>
