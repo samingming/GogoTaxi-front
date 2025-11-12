@@ -1,8 +1,10 @@
-// src/lib/http.ts
 import axios from 'axios'
-export const http = axios.create({ baseURL: import.meta.env.VITE_API_URL })
-http.interceptors.request.use(cfg => {
-  const t = localStorage.getItem('auth_token')
-  if (t) cfg.headers.Authorization = `Bearer ${t}`
-  return cfg
+
+const apiBaseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
+
+export const apiClient = axios.create({
+  baseURL: apiBaseUrl || undefined,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 })

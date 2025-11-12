@@ -84,6 +84,7 @@ import { useRouter } from 'vue-router'
 // import { registerUser } from '@/services/auth'
 // 2. axios 임포트 추가
 import axios from 'axios'
+import { apiClient } from '@/services/http'
 
 const router = useRouter()
 
@@ -120,7 +121,7 @@ async function checkId() {
   }
 
   try {
-    const response = await axios.get('http://localhost:3000/api/auth/check-id', {
+    const response = await apiClient.get('/api/auth/check-id', {
       params: { userid: trimmedId },
     })
 
@@ -188,7 +189,7 @@ async function submit() {
   // 4. 기존 try...catch 블록을 API 호출 코드로 변경
   try {
     // ⭐️ 백엔드 회원가입 API 호출
-    const response = await axios.post('http://localhost:3000/api/auth/register', {
+    const response = await apiClient.post('/api/auth/register', {
       name: name.value,
       userid: userid.value,
       pw: pw.value,

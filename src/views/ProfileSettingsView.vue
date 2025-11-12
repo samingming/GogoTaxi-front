@@ -145,6 +145,7 @@ import { reactive, ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import arrowBackIcon from "@/assets/arrowback.svg";
 import axios from "axios";
+import { apiClient } from "@/services/http";
 
 const router = useRouter();
 
@@ -246,7 +247,7 @@ async function fetchUserProfile() {
 
     const userid = loggedInUser.userid;
 
-    const response = await axios.get<UserProfileData>(`http://localhost:3000/api/profile/${userid}`);
+    const response = await apiClient.get<UserProfileData>(`/${userid}`);
 
     const data = response.data;
 

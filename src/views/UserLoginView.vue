@@ -72,6 +72,7 @@ import { useRouter, useRoute } from 'vue-router'
 // 1. mockLogin 대신 axios 임포트
 // import { login as mockLogin, socialLogin } from '@/services/auth'
 import axios from 'axios'
+import { apiClient } from '@/services/http'
 import { loginWithKakao } from '@/services/kakao'
 import { loginWithGoogle } from '@/services/google'
 import { socialLogin } from '@/services/auth' // socialLogin은 일단 그대로 둠
@@ -94,7 +95,7 @@ async function login() {
   }
   try {
     // ⭐️ 백엔드 로그인 API 호출 ⭐️
-    const response = await axios.post('http://localhost:3000/api/auth/login', {
+    const response = await apiClient.post('/', {
       id: id.value,
       pw: pw.value,
     })
