@@ -72,15 +72,29 @@ import { useRouter, useRoute } from 'vue-router'
 import { login as mockLogin, socialLogin } from '@/services/auth'
 import { loginWithKakao } from '@/services/kakao'
 import { loginWithGoogle } from '@/services/google'
+import { loginWithApi, isAuthApiConfigured } from '@/services/apiAuth'
 
 const router = useRouter()
 const route = useRoute()
 
 const id = ref('')
 const pw = ref('')
+const useRemoteAuth = isAuthApiConfigured
 
 function resolveRedirect() {
   return (route.query.redirect as string) || '/home'
+}
+
+function resolveErrorMessage(err: unknown, fallback: string) {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: unknown } }).response
+    const data = response?.data
+    if (typeof data === 'string') return data
+    if (data && typeof data === 'object' && 'message' in data) {
+      return String((data as { message: unknown }).message)
+    }
+  }
+  return err instanceof Error ? err.message : fallback
 }
 
 async function login() {
@@ -89,10 +103,14 @@ async function login() {
     return
   }
   try {
-    mockLogin(id.value, pw.value)
+    if (useRemoteAuth) {
+      await loginWithApi({ email: id.value, password: pw.value })
+    } else {
+      mockLogin(id.value, pw.value)
+    }
     router.push(resolveRedirect())
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : '로그인에 실패했어요.'
+    const msg = resolveErrorMessage(err, '로그인에 실패했어요.')
     alert(msg)
   }
 }

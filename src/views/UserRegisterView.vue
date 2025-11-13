@@ -80,6 +80,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerUser } from '@/services/auth'
+import { signupWithApi, isAuthApiConfigured } from '@/services/apiAuth'
 
 const router = useRouter()
 
@@ -92,6 +93,7 @@ const birthDate = ref('')
 const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
+const useRemoteAuth = isAuthApiConfigured
 
 function checkId() {
   if (!userid.value) {
@@ -101,7 +103,7 @@ function checkId() {
   alert(`'${userid.value}' 아이디는 사용 가능한 예시입니다.`)
 }
 
-function submit() {
+async function submit() {
   if (!name.value || !userid.value || !pw.value || !pw2.value || !phone.value || !birthDate.value) {
     alert('?? ??? ?? ??? ???.')
     return
@@ -121,16 +123,24 @@ function submit() {
   }
 
   try {
-    registerUser({
-      id: userid.value,
-      name: name.value,
-      password: pw.value,
-      phone: normalizedPhone,
-      birthDate: birthDate.value,
-      gender: gender.value,
-      sms: sms.value,
-      terms: terms.value,
-    })
+    if (useRemoteAuth) {
+      await signupWithApi({
+        email: userid.value,
+        password: pw.value,
+        nickname: name.value || userid.value,
+      })
+    } else {
+      registerUser({
+        id: userid.value,
+        name: name.value,
+        password: pw.value,
+        phone: normalizedPhone,
+        birthDate: birthDate.value,
+        gender: gender.value,
+        sms: sms.value,
+        terms: terms.value,
+      })
+    }
     alert('????? ???????!')
     router.push({ name: 'login' })
   } catch (err) {
