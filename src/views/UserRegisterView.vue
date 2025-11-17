@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="auth-wrap">
     <div class="card">
       <div class="logo">
@@ -80,11 +80,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-// 1. 기존 registerUser 임포트 제거
-// import { registerUser } from '@/services/auth'
-// 2. axios 임포트 추가
-import axios from 'axios'
-import { apiClient } from '@/services/http'
+import { registerUser } from '@/services/auth'
+import { signupWithApi, isAuthApiConfigured } from '@/services/apiAuth'
 
 const router = useRouter()
 
@@ -98,75 +95,17 @@ const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
 
-function formatPhoneInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  const digitsOnly = target.value.replace(/\D/g, '').slice(0, 11)
-
-  if (digitsOnly.length <= 3) {
-    phone.value = digitsOnly
-    return
-  }
-  if (digitsOnly.length <= 7) {
-    phone.value = `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3)}`
-    return
-  }
-  phone.value = `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3, 7)}-${digitsOnly.slice(7)}`
-}
-
-async function checkId() {
-  const trimmedId = userid.value.trim()
-  if (!trimmedId) {
+function checkId() {
+  if (!userid.value) {
     alert('아이디를 입력해 주세요.')
     return
   }
-
-  try {
-    const response = await apiClient.get('/api/auth/check-id', {
-      params: { userid: trimmedId },
-    })
-
-    const available =
-      (typeof response.data?.available === 'boolean' && response.data.available) ||
-      response.data?.status === 'available'
-
-    if (available) {
-      alert(`'${trimmedId}' 사용 가능한 아이디입니다.`)
-    } else {
-      alert(`'${trimmedId}' 사용 중인 아이디입니다.`)
-    }
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      if (err.response?.status === 404) {
-        alert(`'${trimmedId}' 사용 중인 아이디입니다.`)
-        return
-      }
-
-      const backendMessage =
-        (err.response?.data && typeof err.response.data === 'object' && 'error' in err.response.data
-          ? (err.response.data as { error?: string }).error
-          : undefined) || err.message
-
-      alert(backendMessage || '아이디 중복 확인 중 오류가 발생했습니다.')
-      return
-    }
-
-    alert(err instanceof Error ? err.message : '아이디 중복 확인 중 알 수 없는 오류가 발생했습니다.')
-  }
+  alert(`'${userid.value}' 아이디는 사용 가능한 예시입니다.`)
 }
 
-// 3. submit 함수를 async로 변경
 async function submit() {
-  const filledAllFields =
-    name.value.trim() &&
-    userid.value.trim() &&
-    phone.value.trim() &&
-    birthDate.value &&
-    pw.value &&
-    pw2.value &&
-    gender.value
-
-  if (!filledAllFields) {
-    alert('모든 정보를 입력해 주세요.')
+  if (!name.value || !userid.value || !pw.value || !pw2.value || !phone.value || !birthDate.value) {
+    alert('?? ??? ?? ??? ???.')
     return
   }
   if (pw.value !== pw2.value) {
@@ -188,20 +127,25 @@ async function submit() {
 
   // 4. 기존 try...catch 블록을 API 호출 코드로 변경
   try {
-    // ⭐️ 백엔드 회원가입 API 호출
-    const response = await apiClient.post('/api/auth/register', {
-      name: name.value,
-      userid: userid.value,
-      pw: pw.value,
-      gender: gender.value || null,
-      sms: sms.value,
-      terms: terms.value,
-      phone: phoneToSend,
-      birthDate: birthDateToSend,
-    })
-
-    console.log('백엔드 응답:', response.data) // 성공 로그
-    alert('회원가입이 완료되었습니다!')
+    if (useRemoteAuth) {
+      await signupWithApi({
+        email: userid.value,
+        password: pw.value,
+        nickname: name.value || userid.value,
+      })
+    } else {
+      registerUser({
+        id: userid.value,
+        name: name.value,
+        password: pw.value,
+        phone: normalizedPhone,
+        birthDate: birthDate.value,
+        gender: gender.value,
+        sms: sms.value,
+        terms: terms.value,
+      })
+    }
+    alert('????? ???????!')
     router.push({ name: 'login' })
 
   } catch (err: unknown) { // 5. 'any' 대신 'unknown' 사용 및 에러 처리

@@ -166,6 +166,14 @@ function handleSortModeChange(event: Event) {
   display: flex;
   flex-direction: column;
   max-height: min(680px, 90vh);
+  --btn-primary-bg: #facc15;
+  --btn-primary-hover-bg: #ffd21a;
+  --btn-primary-color: #7c2d12;
+  --btn-primary-hover-color: #7a2b03;
+  --btn-ghost-bg: #ffe5ae;
+  --btn-ghost-hover-bg: #ffd27a;
+  --btn-ghost-color: #9c4d01;
+  --btn-ghost-hover-color: #7a2b00;
 }
 .sort-modal__header { padding: 22px 24px 12px; }
 .sort-modal__header h2 { margin: 0; font-size: 20px; color: #7c2d12; }
@@ -193,15 +201,27 @@ function handleSortModeChange(event: Event) {
 }
 
 .loc-btn{
-  border:none; border-radius:16px; padding:12px;
-  font-weight:600; background:rgba(251,191,36,.2); color:#92400e; cursor:pointer;
+  border:1px solid rgba(250, 173, 60, 0.35);
+  border-radius:18px;
+  padding:12px 18px;
+  font-weight:600;
+  background:var(--btn-ghost-bg);
+  color:var(--btn-ghost-color);
+  cursor:pointer;
+  transition:background .2s ease, color .2s ease, border-color .2s ease;
 }
 .loc-btn:disabled{ opacity:.6; cursor:progress; }
 
 .loc-mini{
-  border:none; border-radius:999px; padding:8px 14px;
-  background:rgba(251,191,36,.25); color:#92400e; cursor:pointer;
-  font-size:13px; font-weight:600;
+  border:none;
+  border-radius:999px;
+  padding:8px 14px;
+  background:var(--btn-ghost-bg);
+  color:var(--btn-ghost-color);
+  cursor:pointer;
+  font-size:13px;
+  font-weight:600;
+  transition:background .2s ease, color .2s ease;
 }
 .loc-mini:disabled{ opacity:.6; cursor:progress; }
 
@@ -223,7 +243,7 @@ function handleSortModeChange(event: Event) {
   margin:0;
   padding:6px 12px;
   border-radius:999px;
-  background:rgba(251,191,36,.15);
+  background:var(--btn-ghost-bg);
   color:#7c2d12;
   font-weight:600;
 }
@@ -240,21 +260,33 @@ function handleSortModeChange(event: Event) {
 .modal-primary-btn{
   border:none; border-radius:999px; padding:8px 14px;
   font-size:13px; font-weight:700;
-  background:#facc15; color:#7c2d12; cursor:pointer;
-  box-shadow:0 8px 20px rgba(245,158,11,.25);
+  background:var(--btn-primary-bg); color:var(--btn-primary-color); cursor:pointer;
+  transition:background .2s ease, color .2s ease;
 }
-.modal-primary-btn:hover{ filter:brightness(.98); }
 
 /* 닫기 — 기존 디자인 그대로 */
 .modal-close-btn{
   border:none; border-radius:999px; padding:8px 14px;
   font-size:13px; font-weight:600;
-  background:rgba(251,191,36,.4); color:#92400e; cursor:pointer;
-  transition:background .2s ease, color .2s ease, box-shadow .2s ease;
+  background:var(--btn-ghost-bg); color:var(--btn-ghost-color); cursor:pointer;
+  transition:background .2s ease, color .2s ease;
 }
-.modal-close-btn:hover{
-  background:rgba(250,184,0,.6); color:#7c2d12;
-  box-shadow:0 8px 20px rgba(245,158,11,.25);
+
+.modal-primary-btn:hover,
+.modal-close-btn:hover,
+.loc-btn:not(:disabled):hover,
+.loc-mini:not(:disabled):hover{
+  background:var(--btn-ghost-hover-bg);
+  color:var(--btn-ghost-hover-color);
+}
+
+.modal-primary-btn:hover{
+  background:var(--btn-primary-hover-bg);
+  color:var(--btn-primary-hover-color);
+}
+
+.loc-btn:not(:disabled):hover{
+  border-color:rgba(250, 173, 60, 0.55);
 }
 
 @media (max-width: 540px){

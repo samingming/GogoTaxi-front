@@ -130,70 +130,70 @@ function confirm() {
 .time-picker__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(15, 23, 42, 0.45);
 }
 
 .time-picker__panel {
   position: relative;
   width: min(460px, 92vw);
-  background: #ffffff;
-  border-radius: 32px;
+  background: #fffef8;
+  border-radius: 28px;
   padding: 1.6rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.15);
+  gap: 1.1rem;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
 }
 
 .time-picker__header h3 {
   margin: 0;
-  font-size: 1.2rem;
-  color: #2f1c03;
+  font-size: 1.18rem;
+  color: #7c2d12;
 }
 
 .time-picker__header p {
   margin: 0.35rem 0 0;
-  color: #6a5f4d;
+  color: #b45309;
   font-size: 0.92rem;
 }
 
 .time-picker__body {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .time-picker__display {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 20px;
-  padding: 0.9rem 1.2rem;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 22px;
+  padding: 1rem 1.4rem;
   display: flex;
   justify-content: center;
   align-items: baseline;
-  gap: 0.5rem;
-  font-size: 1.4rem;
+  gap: 0.6rem;
+  font-size: 1.45rem;
   font-weight: 700;
-  background: #fff4d4;
-  color: #2f1c03;
+  background: #fff6cf;
+  color: #78350f;
 }
 
 .time-display__period {
   font-size: 1rem;
-  color: #6a5f4d;
+  color: #92400e;
 }
 
 .time-picker__selectors {
   display: grid;
-  grid-template-columns: 1.15fr repeat(2, minmax(90px, 0.85fr));
-  gap: 0.75rem;
+  grid-template-columns: 1.1fr repeat(2, minmax(90px, 0.9fr));
+  gap: 0.9rem;
   align-items: stretch;
 }
 
 .time-column {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.45rem;
   min-width: 0;
 }
 
@@ -201,56 +201,61 @@ function confirm() {
   margin: 0;
   font-weight: 600;
   font-size: 0.9rem;
-  color: #6a5f4d;
+  color: #9a3412;
 }
 
 .chip-group {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .selector-chip {
   flex: 1;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 0.5rem 0.7rem;
-  background: #f7f8fd;
-  color: #2f1c03;
+  border-radius: 999px;
+  border: none;
+  padding: 0.55rem 0.9rem;
+  background: #ffe5ae;
+  color: #9c4d01;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.selector-chip:hover {
+  background: #ffd27a;
+  color: #7a2b00;
 }
 
 .selector-chip.is-active {
-  background: #fdd651;
-  border-color: #fdd651;
-  color: #2f1c03;
+  background: #facc15;
+  color: #7c2d12;
+}
+
+.selector-chip.is-active:hover {
+  background: #facc15;
+  color: #7c2d12;
 }
 
 .time-select {
   width: 100%;
   border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.3);
   padding: 0.65rem 0.85rem;
   font-size: 0.95rem;
   font-weight: 600;
-  background: #f8f9ff;
-  color: #2f1c03;
+  background: #fffdf4;
+  color: #7c2d12;
   appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #c4c7d1 50%),
-    linear-gradient(135deg, #c4c7d1 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% - 4px),
-    calc(100% - 12px) calc(50% - 4px);
-  background-size: 6px 6px;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.41.59L6 5.17l4.59-4.58L12 2l-6 6-6-6L1.41.59z' fill='%23b45309'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 12px 8px;
 }
 
 .time-select:focus {
   outline: none;
-  border-color: #fdd651;
+  border-color: #facc15;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.25);
 }
 
 .time-picker__actions {
@@ -262,22 +267,21 @@ function confirm() {
 .primary-button,
 .ghost-button {
   border-radius: 999px;
-  padding: 0.9rem 2.2rem;
+  padding: 0.85rem 2rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease;
   border: none;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .primary-button {
-  background: #fdd651;
-  color: #2f1c03;
+  background: #facc15;
+  color: #7c2d12;
 }
 
 .ghost-button {
-  background: #ffffff;
-  color: #2f1c03;
-  border: 1px solid #d7d8de;
+  background: #ffe5ae;
+  color: #9c4d01;
 }
 
 .primary-button:disabled,
@@ -286,9 +290,14 @@ function confirm() {
   cursor: not-allowed;
 }
 
-.primary-button:not(:disabled):hover,
+.primary-button:not(:disabled):hover {
+  background: #ffd21a;
+  color: #7a2b03;
+}
+
 .ghost-button:not(:disabled):hover {
-  transform: translateY(-1px);
+  background: #ffd27a;
+  color: #7a2b00;
 }
 
 @media (max-width: 600px) {
