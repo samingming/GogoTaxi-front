@@ -96,7 +96,6 @@ import { login as loginApi } from '@/api/auth'
 import { socialLogin } from '@/services/auth'
 import { loginWithKakao } from '@/services/kakao'
 import { loginWithGoogle } from '@/services/google'
-import { socialLogin } from '@/services/auth' // socialLogin은 일단 그대로 둠
 
 const router = useRouter()
 const route = useRoute()
@@ -125,8 +124,7 @@ function resolveErrorMessage(err: unknown, fallback: string) {
 
 // 🔥 실제 로그인 처리
 async function login() {
-  const trimmedId = id.value.trim()
-  if (!trimmedId || !pw.value) {
+  if (!id.value || !pw.value) {
     alert('아이디와 비밀번호를 입력해 주세요.')
     return
   }

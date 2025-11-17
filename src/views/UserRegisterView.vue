@@ -17,24 +17,23 @@
         </div>
 
         <div class="field">
-          <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
-        </div>
-        <div class="field">
-          <input v-model="pw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" />
-        </div>
-
-        <div class="field">
           <input
-            v-model="phone"
+            v-model.trim="phone"
             type="tel"
             inputmode="tel"
-            placeholder="010-0000-0000"
+            placeholder="전화번호 (- 없이 입력)"
             autocomplete="tel-national"
-            @input="formatPhoneInput"
           />
         </div>
         <div class="field">
           <input v-model="birthDate" type="date" placeholder="생년월일" />
+        </div>
+
+        <div class="field">
+          <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <input v-model="pw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" />
         </div>
 
         <div class="gender-group">
@@ -94,6 +93,7 @@ const birthDate = ref('')
 const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
+const useRemoteAuth = isAuthApiConfigured
 
 function checkId() {
   if (!userid.value) {
@@ -109,23 +109,19 @@ async function submit() {
     return
   }
   if (pw.value !== pw2.value) {
-    alert('비밀번호가 일치하지 않습니다.')
+    alert('????? ???? ????.')
     return
   }
   const normalizedPhone = phone.value.replace(/\D/g, '')
   if (normalizedPhone.length < 9) {
-    alert('전화번호 입력은 필수입니다.')
+    alert('????? ??? ??? ???.')
     return
   }
   if (!terms.value) {
-    alert('이용약관 동의는 필수입니다.')
+    alert('???? ??? ?????.')
     return
   }
 
-  const phoneToSend = phone.value.trim() || null
-  const birthDateToSend = birthDate.value || null
-
-  // 4. 기존 try...catch 블록을 API 호출 코드로 변경
   try {
     if (useRemoteAuth) {
       await signupWithApi({
@@ -147,15 +143,8 @@ async function submit() {
     }
     alert('????? ???????!')
     router.push({ name: 'login' })
-
-  } catch (err: unknown) { // 5. 'any' 대신 'unknown' 사용 및 에러 처리
-    let msg = '회원가입에 실패했습니다.'
-    // 백엔드에서 보낸 에러 메시지(예: "이미 사용 중인 아이디입니다.") 표시
-    if (axios.isAxiosError(err) && err.response?.data?.error) {
-      msg = err.response.data.error
-    } else if (err instanceof Error) {
-      msg = err.message
-    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '????? ??????.'
     alert(msg)
   }
 }

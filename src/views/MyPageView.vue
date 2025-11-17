@@ -41,10 +41,8 @@
 </template>
 
 <script setup lang="ts">
-// 1. onMounted, axios 추가
-import { computed, ref, onMounted } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 import editIcon from "@/assets/edit.svg";
 import profileImage from "@/assets/user.svg";
 import maleBadge from "@/assets/male.svg";
@@ -66,65 +64,11 @@ const labels = {
 
 type GenderValue = "male" | "female" | "M" | "F" | "\uB0A8\uC131" | "\uC5EC\uC131" | "";
 
-function formatPhoneNumber(raw?: string | null) {
-  const digits = (raw ?? "").replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  if (digits.length <= 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-}
-
-// 2. ⭐️ 하드코딩된 user 값을 '로딩 중...'으로 변경
 const user = ref({
-  nickname: "로딩 중...",
-  phone: "로딩 중...",
-  gender: "" as GenderValue,
+  nickname: "\uAE40\uC608\uC740",
+  phone: "010-1234-5678",
+  gender: "\uC5EC\uC131" as GenderValue,
 });
-
-// 3. ⭐️ 페이지 로드 시 API 호출 함수 실행 (신규)
-onMounted(() => {
-  fetchUserProfile();
-});
-
-// 4. ⭐️ '내 정보' 불러오기 함수 (신규)
-async function fetchUserProfile() {
-  try {
-    const userJson = localStorage.getItem('auth_user');
-    if (!userJson) {
-      throw new Error('로그인 정보가 없습니다.');
-    }
-
-    const loggedInUser = JSON.parse(userJson) as { userid?: string };
-    if (!loggedInUser || !loggedInUser.userid) {
-       throw new Error('사용자 ID를 찾을 수 없습니다.');
-    }
-
-    const userid = loggedInUser.userid;
-    // 5. ⭐️ 백엔드 프로필 API 호출
-    const response = await axios.get(`http://localhost:3000/api/profile/${userid}`);
-
-    // 6. ⭐️ 응답 데이터 타입 정의
-    type UserProfileData = {
-      name?: string | null;
-      phone?: string | null;
-      gender?: GenderValue | null;
-    };
-
-    const data: UserProfileData = response.data;
-
-    // 7. ⭐️ API 응답으로 user.value 객체 덮어쓰기
-    user.value.nickname = data.name || '닉네임 미설정';
-    user.value.phone = data.phone || '';
-    user.value.gender = data.gender || ''; // genderIconSrc가 알아서 처리함
-
-  } catch (error: unknown) {
-    console.error('마이페이지 로딩 실패:', error);
-    alert('사용자 정보를 불러오는데 실패했습니다. 다시 로그인해주세요.');
-    router.push('/login');
-  }
-}
 
 const displayNickname = computed(() => {
   const nickname = user.value.nickname?.trim();
@@ -133,10 +77,7 @@ const displayNickname = computed(() => {
 
 const displayPhone = computed(() => {
   const phone = user.value.phone?.trim();
-  if (!phone) return labels.noPhone;
-  if (phone.includes("\uB85C\uB529")) return phone;
-  const formatted = formatPhoneNumber(phone);
-  return formatted || labels.noPhone;
+  return phone?.length ? phone : labels.noPhone;
 });
 
 const genderIconSrc = computed(() => {

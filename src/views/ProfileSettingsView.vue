@@ -141,11 +141,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { reactive, ref, computed, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import arrowBackIcon from "@/assets/arrowback.svg";
-import axios from "axios";
-import { apiClient } from "@/services/http";
 
 const router = useRouter();
 
@@ -179,25 +177,13 @@ const placeholders = {
   passwordConfirm: "\uBE44\uBC00\uBC88\uD638\uB97C \uD55C \uBC88 \uB354 \uC785\uB825\uD558\uC138\uC694",
 };
 
-const PHONE_FALLBACK_TEXT = '???? ???';
-
-function formatPhoneNumber(raw?: string | null) {
-  const digits = (raw ?? "").replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  if (digits.length <= 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-}
-
 const account = reactive({
-  nickname: "로딩 중...",
-  phone: "로딩 중...",
-  username: "로딩 중...",
-  password: "••••••••",
-  gender: "로딩 중...",
-  birthDate: "로딩 중...",
+  nickname: "\uAE40\uC608\uC740",
+  phone: "010-1234-5678",
+  username: "gogotaxi_ye",
+  password: "Taxi!2024",
+  gender: "\uC5EC\uC131",
+  birthDate: "2000-08-15",
 });
 
 type EditableField = "nickname" | "phone" | "password";
@@ -221,73 +207,7 @@ const errors = reactive({
 const copyFeedback = ref("");
 let copyTimeout: number | null = null;
 
-const passwordMask = computed(() => "••••••••");
-
-// 백엔드에서 받아올 데이터의 타입을 미리 정의합니다.
-type UserProfileData = {
-  name?: string | null;
-  phone?: string | null;
-  userid?: string | null; // 백엔드 API가 userid를 반환한다고 가정
-  gender?: 'M' | 'F' | null;
-  birthDate?: string | null; // YYYY-MM-DDTHH:mm:ss.sssZ 형식의 문자열
-};
-
-async function fetchUserProfile() {
-  try {
-    const userJson = localStorage.getItem('auth_user');
-    if (!userJson) {
-      throw new Error('로그인 정보가 없습니다. 다시 로그인해주세요.');
-    }
-
-    const loggedInUser = JSON.parse(userJson) as { userid?: string };
-
-    if (!loggedInUser || !loggedInUser.userid) {
-       throw new Error('사용자 ID를 찾을 수 없습니다.');
-    }
-
-    const userid = loggedInUser.userid;
-
-    const response = await apiClient.get<UserProfileData>(`/${userid}`);
-
-    const data = response.data;
-
-    account.nickname = data.name || '닉네임 미설정';
-    account.phone = formatPhoneNumber(data.phone) || PHONE_FALLBACK_TEXT;
-
-    account.username = (typeof data.userid === 'string' && data.userid)
-      ? data.userid
-      : '아이디 없음';
-
-    account.gender = data.gender === 'M' ? '남성' : (data.gender === 'F' ? '여성' : '미설정');
-
-    if (typeof data.birthDate === 'string' && data.birthDate) {
-      const parsedBirthDate = new Date(data.birthDate);
-      if (Number.isNaN(parsedBirthDate.getTime())) {
-        account.birthDate = '미설정';
-      } else {
-        account.birthDate = parsedBirthDate.toISOString().slice(0, 10);
-      }
-    } else {
-      account.birthDate = '미설정';
-    }
-
-  } catch (error: unknown) { // [오류 수정 3] 'S'가 아닌 'unknown' 사용
-    console.error('프로필 로딩 실패:', error);
-
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
-    } else {
-      alert('프로필 정보를 불러오는 데 실패했습니다.');
-    }
-    router.push('/login');
-  }
-}
-
-// 페이지가 마운트(로드)될 때 fetchUserProfile 함수 실행
-onMounted(() => {
-  fetchUserProfile();
-});
-
+const passwordMask = computed(() => "*".repeat(account.password.length));
 
 const resetErrors = () => {
   errors.nickname = "";
@@ -308,7 +228,7 @@ const startEdit = (field: EditableField) => {
   if (field === "nickname") {
     editForm.nickname = account.nickname;
   } else if (field === "phone") {
-    editForm.phone = account.phone === PHONE_FALLBACK_TEXT ? '' : account.phone;
+    editForm.phone = account.phone;
   } else {
     editForm.password = "";
     editForm.passwordConfirm = "";
@@ -321,7 +241,6 @@ const cancelEdit = () => {
   editingField.value = null;
 };
 
-// (TODO: 이 함수들도 나중에는 백엔드 API를 호출하도록 바꿔야 합니다.)
 const saveNickname = () => {
   const nextNickname = editForm.nickname.trim();
   if (!nextNickname) {
@@ -333,7 +252,7 @@ const saveNickname = () => {
 };
 
 const savePhone = () => {
-  const nextPhone = formatPhoneNumber(editForm.phone);
+  const nextPhone = editForm.phone.trim();
   if (!nextPhone) {
     errors.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
     return;
@@ -353,7 +272,7 @@ const savePassword = () => {
     errors.password = "\uBE44\uBC00\uBC88\uD638\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
     return;
   }
-  // account.password = nextPassword; // 실제 비밀번호를 저장하지 않음
+  account.password = nextPassword;
   cancelEdit();
 };
 
@@ -389,10 +308,6 @@ const cancelLogout = () => {
 
 const confirmLogout = () => {
   showLogoutConfirm.value = false;
-
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('auth_user');
-
   router.push({ name: "login" }).catch((error) => {
     console.warn("\uB85C\uADF8\uC544\uC6C3 \uD6C4 \uC774\uB3D9 \uC911 \uC624\uB958", error);
   });
