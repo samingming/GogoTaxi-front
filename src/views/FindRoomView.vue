@@ -479,14 +479,6 @@ const pickerInitialPosition = computed<GeoPoint>(() => {
   )
 })
 
-const formattedPreferredTime = computed(() => {
-  if (!hasPreferredTime.value) return '미설정'
-  const hour = Number(preferredHour.value) % 12 || 12
-  const minute = preferredMinute.value.padStart(2, '0')
-  const period = preferredPeriod.value === 'AM' ? '오전' : '오후'
-  return `${period} ${hour}시 ${minute}분`
-})
-
 const draftFormattedPreferredTime = computed(() => {
   if (!hasDraftPreferredTime.value) return '미설정'
   const hour = Number(draftPreferredHour.value) % 12 || 12
@@ -494,16 +486,6 @@ const draftFormattedPreferredTime = computed(() => {
   const period = draftPreferredPeriod.value === 'AM' ? '오전' : '오후'
   return `${period} ${hour}시 ${minute}분`
 })
-
-const activeTimePickerPeriod = computed(() =>
-  timePickerContext.value === 'draft' ? draftPreferredPeriod.value : preferredPeriod.value,
-)
-const activeTimePickerHour = computed(() =>
-  timePickerContext.value === 'draft' ? draftPreferredHour.value : preferredHour.value,
-)
-const activeTimePickerMinute = computed(() =>
-  timePickerContext.value === 'draft' ? draftPreferredMinute.value : preferredMinute.value,
-)
 
 function openTimePicker(target: 'applied' | 'draft' = 'applied') {
   timePickerContext.value = target
