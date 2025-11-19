@@ -12,9 +12,20 @@
         <span v-if="room.capacity">정원 {{ room.capacity }}명</span>
       </div>
       <div class="room-live__actions">
-        <button type="button" class="btn btn--ghost" @click="leaveRoom">방 나가기</button>
+        <button
+          type="button"
+          class="btn btn--ghost"
+          :disabled="isLeavingRoom"
+          @click="leaveRoom"
+        >
+          {{ isLeavingRoom ? '방 나가는 중...' : '방 나가기' }}
+        </button>
         <button type="button" class="btn btn--primary" @click="changeSeat">좌석 다시 고르기</button>
       </div>
+      <p v-if="detailLoading" class="room-live__status">방 정보를 불러오는 중이에요...</p>
+      <p v-else-if="detailError" class="room-live__status room-live__status--error">
+        {{ detailError }}
+      </p>
     </header>
 
       <div class="room-live__grid">
@@ -127,20 +138,34 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getRoomById, mockRooms } from '@/data/mockRooms'
 import type { RoomPreview } from '@/types/rooms'
 import RouteMapBox from '@/components/RouteMapBox.vue'
+import {
+  fetchMyRooms,
+  fetchRoomDetail,
+  leaveRoomFromApi,
+  type RoomParticipant,
+} from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
 
 const route = useRoute()
 const router = useRouter()
-const fallbackRoomId = mockRooms[0]?.id ?? ''
-const { joinedRooms, leaveRoom: abandonRoom, updateSeat, setActiveRoom, syncRoomSnapshot } =
-  useRoomMembership()
+const {
+  joinedRooms,
+  leaveRoom: abandonRoom,
+  updateSeat,
+  setActiveRoom,
+  syncRoomSnapshot,
+  replaceRooms,
+} = useRoomMembership()
 
-const roomId = computed(() => (route.params.id as string | undefined) ?? fallbackRoomId)
-const membership = computed(() => joinedRooms.value.find(entry => entry.roomId === roomId.value) ?? null)
-const room = computed<RoomPreview | null>(() => getRoomById(roomId.value) ?? membership.value?.roomSnapshot ?? null)
+const fallbackRoomId = computed(() => joinedRooms.value[0]?.roomId ?? '')
+const roomId = computed(() => (route.params.id as string | undefined) ?? fallbackRoomId.value)
+const membership = computed(
+  () => joinedRooms.value.find(entry => entry.roomId === roomId.value) ?? null,
+)
+const roomDetail = ref<RoomPreview | null>(null)
+const room = computed<RoomPreview | null>(() => roomDetail.value ?? membership.value?.roomSnapshot ?? null)
 const seatFromQuery = computed(() => {
   const seatQuery = route.query.seat
   if (!seatQuery) return null
@@ -150,17 +175,35 @@ const seatFromQuery = computed(() => {
 })
 const seatNumber = computed(() => membership.value?.seatNumber ?? seatFromQuery.value)
 
-const participants = computed(() => [
-  { id: 'p1', name: '이유진', initials: 'YJ', role: '방장', seat: 1 },
-  { id: 'p2', name: '최우식', initials: 'WS', seat: 2 },
-  { id: 'p3', name: '박지연', initials: 'JY', seat: 3 },
-  {
-    id: 'me',
-    name: '나',
-    initials: seatNumber.value ? seatNumber.value.toString() : 'ME',
-    seat: seatNumber.value,
-  },
-])
+const participantsRaw = ref<RoomParticipant[]>([])
+const detailError = ref('')
+const detailLoading = ref(false)
+
+const participants = computed(() => {
+  if (participantsRaw.value.length) {
+    return participantsRaw.value.map((mate, index) => ({
+      id: mate.id || `participant-${index}`,
+      name: mate.email ?? mate.name ?? `참여자 ${index + 1}`,
+      role: mate.role,
+      seat: mate.seatNumber ?? null,
+      initials: toInitials(mate.email ?? mate.name ?? mate.id ?? `${index + 1}`, `${index + 1}`),
+    }))
+  }
+  if (membership.value) {
+    return [
+      {
+        id: membership.value.roomId,
+        name: '나',
+        role: undefined,
+        seat: membership.value.seatNumber ?? null,
+        initials: membership.value.seatNumber
+          ? membership.value.seatNumber.toString()
+          : 'ME',
+      },
+    ]
+  }
+  return []
+})
 const participantCount = computed(() => Math.max(participants.value.length, 1))
 const perPersonFare = computed(() => {
   const fare = room.value?.fare
@@ -168,16 +211,84 @@ const perPersonFare = computed(() => {
 })
 
 const showRouteMap = ref(false)
+const isLeavingRoom = ref(false)
+
+watch(
+  () => roomId.value,
+  id => {
+    if (id) {
+      loadRoomDetail(id)
+    }
+  },
+  { immediate: true },
+)
+
+async function loadRoomDetail(id: string) {
+  detailLoading.value = true
+  detailError.value = ''
+  try {
+    const { room: nextRoom, participants: participantList } = await fetchRoomDetail(id)
+    roomDetail.value = nextRoom
+    participantsRaw.value = participantList
+    syncRoomSnapshot(id, nextRoom)
+  } catch (error) {
+    detailError.value = resolveErrorMessage(error, '방 정보를 불러오지 못했어요.')
+    participantsRaw.value = []
+    if (!roomDetail.value && membership.value?.roomSnapshot) {
+      roomDetail.value = membership.value.roomSnapshot
+    }
+  } finally {
+    detailLoading.value = false
+  }
+}
 
 function changeSeat() {
   router.push({ name: 'seat-selection', query: { roomId: roomId.value } })
 }
 
-function leaveRoom() {
-  if (roomId.value) {
-    abandonRoom(roomId.value)
+async function leaveRoom() {
+  if (!roomId.value || isLeavingRoom.value) {
+    router.push({ name: 'find-room' })
+    return
   }
-  router.push({ name: 'find-room' })
+  isLeavingRoom.value = true
+  try {
+    await leaveRoomFromApi(roomId.value)
+    abandonRoom(roomId.value)
+    const entries = await fetchMyRooms()
+    replaceRooms(entries)
+    router.push({ name: 'find-room' })
+  } catch (error) {
+    alert(resolveErrorMessage(error, '방 나가기에 실패했어요. 잠시 후 다시 시도해 주세요.'))
+  } finally {
+    isLeavingRoom.value = false
+  }
+}
+
+function toInitials(source?: string, fallback = 'ME') {
+  if (!source) return fallback
+  const trimmed = source.trim()
+  if (!trimmed) return fallback
+  const tokens = trimmed.split(/\s+/).filter(Boolean)
+  const firstToken = tokens[0]
+  if (!firstToken) return fallback
+  if (tokens.length === 1) {
+    return firstToken.slice(0, Math.min(2, firstToken.length))
+  }
+  const lastToken = tokens[tokens.length - 1] ?? firstToken
+  const first = firstToken.charAt(0)
+  const last = lastToken.charAt(0)
+  return `${first}${last}`
+}
+
+function resolveErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error) {
+    return err.message || fallback
+  }
+  if (typeof err === 'string' && err.trim()) {
+    return err
+  }
+  return fallback
 }
 
 function retryDispatch() {
@@ -307,6 +418,16 @@ watch(
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 6px;
+}
+
+.room-live__status {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #a16207;
+}
+
+.room-live__status--error {
+  color: #b91c1c;
 }
 
 .room-live__grid {

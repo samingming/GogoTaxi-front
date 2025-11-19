@@ -27,6 +27,10 @@ const props = defineProps<{
 const ready = ref(false)
 const errorMessage = ref<string | null>(null)
 const canvas = ref<HTMLDivElement>()
+type WindowLike = Pick<Window, 'addEventListener' | 'removeEventListener'> & {
+  ResizeObserver?: typeof ResizeObserver
+}
+const runtimeWindow = globalThis as WindowLike
 
 let kakaoApi: KakaoNamespace | null = null
 let map: kakao.maps.Map | null = null
@@ -106,16 +110,16 @@ function initializeMap(kakao: KakaoNamespace) {
     center: new kakao.maps.LatLng(37.5665, 126.978),
     level: 5,
   })
-  if ('ResizeObserver' in window) {
-    resizeObserver = new ResizeObserver(() => {
+  if (runtimeWindow.ResizeObserver) {
+    resizeObserver = new runtimeWindow.ResizeObserver(() => {
       if (!map) return
       const center = map.getCenter()
-      map.relayout()
+      ;(map as kakao.maps.Map & { relayout?: () => void }).relayout?.()
       map.setCenter(center)
     })
     resizeObserver.observe(canvas.value)
-  } else {
-    window.addEventListener('resize', handleWindowResize)
+  } else if (runtimeWindow.addEventListener) {
+    runtimeWindow.addEventListener('resize', handleWindowResize)
   }
   ready.value = true
   errorMessage.value = null
@@ -125,7 +129,7 @@ function initializeMap(kakao: KakaoNamespace) {
 function handleWindowResize() {
   if (!map) return
   const center = map.getCenter()
-  map.relayout()
+  ;(map as kakao.maps.Map & { relayout?: () => void }).relayout?.()
   map.setCenter(center)
 }
 
@@ -159,7 +163,7 @@ onBeforeUnmount(() => {
   clearMarkers(listMarkers)
   clearMarkers(selectedMarkers)
   resizeObserver?.disconnect()
-  window.removeEventListener('resize', handleWindowResize)
+  runtimeWindow.removeEventListener?.('resize', handleWindowResize)
   map = null
   kakaoApi = null
 })

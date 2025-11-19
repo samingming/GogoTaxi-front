@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="sort-modal-backdrop" role="dialog" aria-modal="true" @click.self="$emit('close')">
     <div class="sort-modal">
       <header class="sort-modal__header">
@@ -131,8 +131,8 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: []                 // 취소(되돌리고 닫기)
-  confirm: []               // 저장(확인)
+  close: []
+  confirm: []
   'select-sort-mode': [SortMode]
   'use-current-location': []
   'open-picker': ['departure' | 'arrival']
@@ -142,8 +142,8 @@ const emit = defineEmits<{
 }>()
 
 function handleSortModeChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value as SortMode
-  emit('select-sort-mode', value)
+  const target = event.target as HTMLSelectElement
+  emit('select-sort-mode', target.value as SortMode)
 }
 </script>
 
@@ -293,3 +293,4 @@ function handleSortModeChange(event: Event) {
   .sort-modal{ width:100%; height:auto; }
 }
 </style>
+
