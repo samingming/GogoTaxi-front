@@ -2,33 +2,45 @@
   <div class="charge-wrapper">
     <div class="charge-container">
       <div class="charge-header">
-        <p class="charge-eyebrow">같이 나눠요.</p>
+        <p class="charge-eyebrow">지금 바로 충전해요.</p>
         <h1 class="charge-title">충전하기</h1>
         <p class="charge-description">
-          예상 금액을 확인하고 충전을 진행해 주세요. 최종 금액은 승인 직후 바로 안내돼요.
+          충전할 금액을 직접 입력하고 바로 충전을 진행해 주세요. 승인 완료 즉시 잔액으로 반영돼요.
         </p>
       </div>
 
       <section class="charge-summary" aria-labelledby="charge-summary-title">
-        <h2 id="charge-summary-title" class="sr-only">예상 충전 금액</h2>
-        <div class="summary-label">예상 충전 금액</div>
-        <div class="summary-amount">
+        <h2 id="charge-summary-title" class="sr-only">충전 금액 입력</h2>
+        <div class="summary-label">충전 금액 입력</div>
+        <div class="summary-input">
           <span class="amount-currency" aria-hidden="true">₩</span>
-          <span class="amount-value">{{ formattedAmount }}</span>
+          <input
+            type="text"
+            inputmode="numeric"
+            class="amount-input"
+            :value="amountInput"
+            @input="handleAmountInput"
+            placeholder="0"
+            aria-label="충전할 금액"
+          />
         </div>
-        <p class="summary-caption">충전 요청에 따라 최종 금액이 달라질 수 있어요.</p>
+        <p class="summary-caption">현재 입력 금액 <strong>{{ formattedAmount }}</strong>이 충전돼요.</p>
       </section>
 
-      <button type="button" class="charge-action" @click="confirmCharge">
-        충전하기
+      <button type="button" class="charge-action" :disabled="isSubmitting" @click="confirmCharge">
+        {{ isSubmitting ? "충전 중..." : "충전하기" }}
       </button>
+
+      <p v-if="errorMessage" class="charge-error" role="alert">
+        {{ errorMessage }}
+      </p>
 
       <section class="charge-guide" aria-labelledby="charge-guide-title">
         <h2 id="charge-guide-title" class="guide-title">안내 사항</h2>
         <ul class="guide-list">
-          <li>승인된 금액에서 이탈이 발생하면 빠른 승인이 필요해요.</li>
-          <li>충전 완료 이후 취소 시 일부 금액이 보류될 수 있어요.</li>
-          <li>변경 사항은 사전에 방장 또는 운영 팀에 알려 주세요.</li>
+          <li>충전 승인이 끝나면 입력한 금액이 즉시 꼬꼬페이에 반영돼요.</li>
+          <li>충전 후 10분 이내 취소 시 처리에 추가 시간이 필요할 수 있어요.</li>
+          <li>결제 카드 명세서에는 “꼬꼬페이 충전”으로 표기돼요.</li>
         </ul>
       </section>
     </div>
@@ -38,17 +50,48 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { refreshUserBalance } from "@/stores/userStore";
+import { topupWallet } from "@/services/walletService";
 
 const router = useRouter();
-const pendingAmount = ref(12500);
+const amountInput = ref("12500");
+const isSubmitting = ref(false);
+const errorMessage = ref("");
+
+const currentAmount = computed(() => {
+  const digits = Number(amountInput.value.replace(/[^0-9]/g, ""));
+  return Number.isNaN(digits) ? 0 : digits;
+});
 
 const formattedAmount = computed(() =>
-  new Intl.NumberFormat("ko-KR").format(pendingAmount.value)
+  new Intl.NumberFormat("ko-KR").format(currentAmount.value)
 );
 
-const confirmCharge = () => {
-  // TODO: replace with real charge flow
-  router.back();
+const handleAmountInput = (event: Event) => {
+  const value = (event.target as HTMLInputElement).value;
+  amountInput.value = value.replace(/[^0-9]/g, "");
+};
+
+const confirmCharge = async () => {
+  const amount = currentAmount.value;
+  if (!amount) {
+    amountInput.value = "";
+    return;
+  }
+  if (isSubmitting.value) return;
+  isSubmitting.value = true;
+  errorMessage.value = "";
+  try {
+    await topupWallet(amount);
+    await refreshUserBalance();
+    amountInput.value = "";
+    router.push("/mypage");
+  } catch (error) {
+    console.error("Failed to top up wallet", error);
+    errorMessage.value = "충전에 실패했어요. 잠시 후 다시 시도해 주세요.";
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 </script>
 
@@ -60,6 +103,7 @@ const confirmCharge = () => {
   font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
   display: flex;
   justify-content: center;
+  overflow: hidden;
 }
 
 .charge-container {
@@ -67,6 +111,7 @@ const confirmCharge = () => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  overflow: hidden;
 }
 
 .charge-header {
@@ -104,17 +149,18 @@ const confirmCharge = () => {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
 }
 
+
 .summary-label {
   margin: 0;
   font-size: 14px;
   color: #d97706;
 }
 
-.summary-amount {
+.summary-input {
   margin: 12px 0 8px;
   display: flex;
-  align-items: baseline;
-  gap: 0.3rem;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .amount-currency {
@@ -123,10 +169,24 @@ const confirmCharge = () => {
   color: #7c2d12;
 }
 
-.amount-value {
+.amount-input {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid rgba(124, 45, 18, 0.4);
   font-size: 32px;
   font-weight: 700;
   color: #7c2d12;
+  background: transparent;
+  padding: 0 0 4px;
+  outline: none;
+}
+
+.amount-input::placeholder {
+  color: rgba(124, 45, 18, 0.4);
+}
+
+.amount-input:focus-visible {
+  border-bottom-color: #7c2d12;
 }
 
 .summary-caption {
@@ -153,6 +213,12 @@ const confirmCharge = () => {
   transform: translateY(1px);
 }
 
+.charge-action:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .charge-guide {
   background: rgba(251, 191, 36, 0.15);
   border-radius: 16px;
@@ -175,6 +241,12 @@ const confirmCharge = () => {
   font-size: 14px;
   color: #7c5a00;
   line-height: 1.6;
+}
+
+.charge-error {
+  margin: -8px 0 0;
+  font-size: 14px;
+  color: #b91c1c;
 }
 
 .sr-only {

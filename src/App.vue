@@ -9,6 +9,8 @@
     <Teleport to="body">
       <BottomTab v-if="!hideBottomTab" />
     </Teleport>
+
+    <NotificationToast />
   </div>
 </template>
 
@@ -17,6 +19,8 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import BottomTab from '@/components/BottomTab.vue'
+import NotificationToast from '@/components/NotificationToast.vue'
+import { startNotificationPolling, stopNotificationPolling } from '@/stores/notificationStore'
 
 const route = useRoute()
 
@@ -39,12 +43,14 @@ onMounted(() => {
   if (typeof window === 'undefined' || !window.visualViewport) return
   window.visualViewport.addEventListener('resize', handleViewportChange)
   window.visualViewport.addEventListener('scroll', handleViewportChange)
+  startNotificationPolling()
 })
 
 onBeforeUnmount(() => {
   if (typeof window === 'undefined' || !window.visualViewport) return
   window.visualViewport.removeEventListener('resize', handleViewportChange)
   window.visualViewport.removeEventListener('scroll', handleViewportChange)
+  stopNotificationPolling()
 })
 
 const lockContentScroll = computed(() => Boolean(route.meta?.lockScroll))

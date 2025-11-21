@@ -50,8 +50,13 @@
 
       <div class="actions">
         <button type="button" class="btn btn--ghost" @click="skip">나중에 할게요.</button>
-        <button type="button" class="btn btn--primary" :disabled="!rating" @click="submit">
-          후기 제출
+        <button
+          type="button"
+          class="btn btn--primary"
+          :disabled="!rating || reviewSubmitting"
+          @click="submit"
+        >
+          {{ reviewSubmitting ? "전송 중..." : "후기 제출" }}
         </button>
       </div>
     </div>
@@ -141,10 +146,10 @@
               <button
                 type="button"
                 class="btn btn--primary"
-                :disabled="!canSubmitReport"
+                :disabled="!canSubmitReport || reportSubmitting"
                 @click="submitReport"
               >
-                신고하기
+                {{ reportSubmitting ? "전송 중..." : "신고하기" }}
               </button>
             </footer>
           </div>
@@ -156,8 +161,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import logoMy from '@/assets/logo_my.png'
+import { createReview } from '@/services/reviewService'
+import { createReport } from '@/services/reportService'
 
 const stars = [1, 2, 3, 4, 5]
 const rating = ref(0)
@@ -166,7 +173,15 @@ const comment = ref('')
 const reportOpen = ref(false)
 const selectedSeat = ref<number | null>(null)
 const reportMessage = ref('')
+const reviewSubmitting = ref(false)
+const reportSubmitting = ref(false)
 const router = useRouter()
+const route = useRoute()
+const roomId = computed(() =>
+  (route.params.roomId as string | undefined) ||
+  (route.query.roomId as string | undefined) ||
+  ''
+)
 interface SeatInfo {
   number: number
   modifier?:
@@ -229,14 +244,35 @@ function skip() {
   router.push({ name: 'home' })
 }
 
-function submit() {
-  if (!rating.value) return
-  // TODO: API 연동 예정
-  alert(`별점 ${rating.value}점과 후기를 전송했습니다.\n\n${comment.value}`)
-  rating.value = 0
-  hovered.value = null
-  comment.value = ''
-  router.push({ name: 'home' })
+const ensureRoomId = () => {
+  if (!roomId.value) {
+    alert('방 정보를 찾을 수 없어요. 잠시 후 다시 시도해 주세요.')
+    return false
+  }
+  return true
+}
+
+async function submit() {
+  if (!rating.value || reviewSubmitting.value) return
+  if (!ensureRoomId()) return
+  try {
+    reviewSubmitting.value = true
+    await createReview({
+      roomId: roomId.value,
+      rating: rating.value,
+      comment: comment.value.trim(),
+    })
+    alert('후기가 등록되었어요. 이용해 주셔서 감사합니다!')
+    rating.value = 0
+    hovered.value = null
+    comment.value = ''
+    router.push({ name: 'home' })
+  } catch (error) {
+    console.error('리뷰 전송 실패', error)
+    alert('후기 전송에 실패했어요. 잠시 후 다시 시도해 주세요.')
+  } finally {
+    reviewSubmitting.value = false
+  }
 }
 
 function openReport() {
@@ -254,14 +290,25 @@ function selectSeat(seat: number) {
   selectedSeat.value = seat
 }
 
-function submitReport() {
-  if (!canSubmitReport.value || !selectedSeat.value) return
-  // TODO: 신고 API 연동 예정
-  alert(
-    `${selectedSeat.value}번 좌석 이용자를 신고 접수했습니다.\n\n신고 내용: ${reportMessage.value}`,
-  )
-  reportMessage.value = ''
-  closeReport()
+async function submitReport() {
+  if (!canSubmitReport.value || !selectedSeat.value || reportSubmitting.value) return
+  if (!ensureRoomId()) return
+  try {
+    reportSubmitting.value = true
+    await createReport({
+      roomId: roomId.value,
+      reportedSeatNumber: selectedSeat.value,
+      message: reportMessage.value.trim(),
+    })
+    alert('신고가 접수되었어요. 빠르게 확인 후 조치할게요.')
+    reportMessage.value = ''
+    closeReport()
+  } catch (error) {
+    console.error('신고 전송 실패', error)
+    alert('신고 접수에 실패했어요. 잠시 후 다시 시도해 주세요.')
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 </script>
 

@@ -60,12 +60,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import editIcon from "@/assets/edit.svg";
 import profileImage from "@/assets/user.svg";
 import maleBadge from "@/assets/male.svg";
 import femaleBadge from "@/assets/female.svg";
+import { refreshUserBalance, useUserStore } from "@/stores/userStore";
 
 const router = useRouter();
 
@@ -87,41 +88,42 @@ const labels = {
   femaleBadge: "\uC5EC\uC131 \uD504\uB85C\uD544",
 };
 
-type GenderValue = "male" | "female" | "M" | "F" | "\uB0A8\uC131" | "\uC5EC\uC131" | "";
+const user = useUserStore();
 
-const user = ref({
-  nickname: "\uAE40\uC608\uC740",
-  phone: "010-1234-5678",
-  gender: "\uC5EC\uC131" as GenderValue,
-  balance: 152500,
+onMounted(() => {
+  if (!user.isBalanceLoaded) {
+    refreshUserBalance().catch(() => {
+      // silently fail; consider showing toast in future
+    });
+  }
 });
 
 const displayNickname = computed(() => {
-  const nickname = user.value.nickname?.trim();
+  const nickname = user.nickname?.trim();
   return nickname?.length ? nickname : labels.noNickname;
 });
 
 const displayPhone = computed(() => {
-  const phone = user.value.phone?.trim();
+  const phone = user.phone?.trim();
   return phone?.length ? phone : labels.noPhone;
 });
 
 const genderIconSrc = computed(() => {
-  const normalized = user.value.gender?.toString().trim().toLowerCase();
+  const normalized = user.gender?.toString().trim().toLowerCase();
   if (["female", "f", "\uc5ec\uc131"].includes(normalized)) return femaleBadge;
   if (["male", "m", "\ub0a8\uc131"].includes(normalized)) return maleBadge;
   return "";
 });
 
 const genderIconAlt = computed(() => {
-  const normalized = user.value.gender?.toString().trim().toLowerCase();
+  const normalized = user.gender?.toString().trim().toLowerCase();
   if (["female", "f", "\uc5ec\uc131"].includes(normalized)) return labels.femaleBadge;
   if (["male", "m", "\ub0a8\uc131"].includes(normalized)) return labels.maleBadge;
   return "";
 });
 
 const displayBalance = computed(() => {
-  const numericBalance = Number(user.value.balance) || 0;
+  const numericBalance = Number(user.balance) || 0;
   return new Intl.NumberFormat("ko-KR").format(numericBalance);
 });
 
