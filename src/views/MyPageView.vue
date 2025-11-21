@@ -19,6 +19,25 @@
         </button>
       </section>
 
+      <section class="wallet-block">
+        <div class="wallet-brand">
+          <span class="wallet-brand-text">{{ labels.kokoPayBrand }}</span>
+          <div class="wallet-amount">
+            <span class="wallet-value">{{ displayBalance }}</span>
+            <span class="wallet-unit">{{ labels.currencyUnit }}</span>
+          </div>
+        </div>
+        <div class="wallet-actions">
+          <button type="button" class="wallet-link" @click="chargeWallet">
+            {{ labels.charge }}
+          </button>
+          <span class="wallet-divider" aria-hidden="true"></span>
+          <button type="button" class="wallet-link" @click="viewWalletHistory">
+            {{ labels.historyButton }}
+          </button>
+        </div>
+      </section>
+
       <section class="menu-block">
         <h2 class="menu-title">{{ labels.quickMenu }}</h2>
         <nav class="menu-list">
@@ -55,6 +74,12 @@ const labels = {
   history: "\uC774\uC6A9 \uAE30\uB85D",
   payment: "\uACB0\uC81C \uC218\uB2E8 \uAD00\uB9AC",
   notice: "\uACF5\uC9C0\uC0AC\uD56D",
+  kokoPay: "\uAF2C\uAF2C\uD398\uC774",
+  kokoPayDescription: "\uD604\uC7AC \uBCF4\uC720 \uAE08\uC561",
+  kokoPayBrand: "pay",
+  currencyUnit: "\uC6D0",
+  charge: "\uCDA9\uC804",
+  historyButton: "\uB0B4\uC5ED",
   noNickname: "\uB2C9\uB124\uC784 \uBBF8\uB4F1\uB85D",
   noPhone: "\uC5F0\uB77D\uCC98 \uBBF8\uB4F1\uB85D",
   openSettings: "\uD504\uB85C\uD544 \uC218\uC815 \uD398\uC774\uC9C0 \uC774\uB3D9",
@@ -68,6 +93,7 @@ const user = ref({
   nickname: "\uAE40\uC608\uC740",
   phone: "010-1234-5678",
   gender: "\uC5EC\uC131" as GenderValue,
+  balance: 152500,
 });
 
 const displayNickname = computed(() => {
@@ -94,6 +120,11 @@ const genderIconAlt = computed(() => {
   return "";
 });
 
+const displayBalance = computed(() => {
+  const numericBalance = Number(user.value.balance) || 0;
+  return new Intl.NumberFormat("ko-KR").format(numericBalance);
+});
+
 const routeNameMap: Record<string, string> = {
   history: "History",
   payment: "payment-methods",
@@ -108,6 +139,14 @@ const goTo = (page: string) => {
 
 const openProfileSettings = () => {
   router.push("/mypage/settings");
+};
+
+const chargeWallet = () => {
+  router.push("/mypage/charge");
+};
+
+const viewWalletHistory = () => {
+  router.push("/mypage/wallet/history");
 };
 </script>
 
@@ -198,6 +237,79 @@ const openProfileSettings = () => {
   font-size: 1rem;
   color: #574f48;
   line-height: 1.15;
+}
+
+.wallet-block {
+  background: #fdd651;
+  border-radius: 28px;
+  padding: 1.35rem 1.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.wallet-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.wallet-brand-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2b2113;
+}
+
+.wallet-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.wallet-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #2b2113;
+}
+
+.wallet-unit {
+  font-size: 1rem;
+  color: #6c5f54;
+}
+
+.wallet-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.wallet-link {
+  border: none;
+  background: transparent;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #2b2113;
+  padding: 0;
+  cursor: pointer;
+}
+
+.wallet-link:hover {
+  opacity: 0.8;
+}
+
+.wallet-link:focus-visible {
+  outline: 2px solid rgba(43, 33, 19, 0.4);
+  outline-offset: 3px;
+}
+
+.wallet-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.35);
+  display: inline-block;
 }
 
 .edit-button {
