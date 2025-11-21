@@ -66,6 +66,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/mypage/charge',
+    name: 'wallet-charge',
+    component: () => import('@/views/WalletChargeView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/notice',
     name: 'notice',
     component: () => import('@/views/NoticeListView.vue'),
