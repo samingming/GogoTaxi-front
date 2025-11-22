@@ -4,25 +4,19 @@
       <div class="logo">
         <img src="@/assets/logo_my.png" alt="꼬꼬 로고" class="logo-img" />
       </div>
-      <h1 class="title">{{ isPendingSocial ? `${providerLabel} 회원 정보 입력` : '회원가입' }}</h1>
-      <p v-if="isPendingSocial" class="description">
-        {{ providerLabel }} 계정으로 연동되었어요.
-      </p>
+      <h1 class="title">{{ isPendingSocial ? `${providerLabel} 회원 정보` : '회원가입' }}</h1>
 
       <form class="form" @submit.prevent="submit">
         <div class="field">
           <input v-model.trim="name" type="text" placeholder="이름" />
         </div>
 
-        <div class="field row">
-          <input
-            v-model.trim="userid"
-            type="text"
-            placeholder="아이디"
-            :disabled="isPendingSocial"
-          />
-          <button type="button" class="ghost" @click="checkId" :disabled="isPendingSocial">중복확인</button>
-        </div>
+        <template v-if="!isPendingSocial">
+          <div class="field row">
+            <input v-model.trim="userid" type="text" placeholder="아이디" />
+            <button type="button" class="ghost" @click="checkId">중복확인</button>
+          </div>
+        </template>
 
         <div class="field">
           <input
@@ -38,24 +32,14 @@
           <input v-model="birthDate" type="date" placeholder="생년월일" />
         </div>
 
-        <div class="field">
-          <input
-            v-model="pw"
-            type="password"
-            placeholder="비밀번호"
-            autocomplete="new-password"
-            :disabled="isPendingSocial"
-          />
-        </div>
-        <div class="field">
-          <input
-            v-model="pw2"
-            type="password"
-            placeholder="비밀번호 확인"
-            autocomplete="new-password"
-            :disabled="isPendingSocial"
-          />
-        </div>
+        <template v-if="!isPendingSocial">
+          <div class="field">
+            <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <input v-model="pw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" />
+          </div>
+        </template>
 
         <div class="gender-group">
           <span class="group-label">성별</span>

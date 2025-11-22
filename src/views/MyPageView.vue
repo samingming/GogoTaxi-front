@@ -76,9 +76,18 @@ const displayNickname = computed(() => {
   return nickname?.length ? nickname : labels.noNickname;
 });
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (!digits) return "";
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
 const displayPhone = computed(() => {
   const phone = user.value.phone?.trim();
-  return phone?.length ? phone : labels.noPhone;
+  const formatted = phone ? formatPhone(phone) : "";
+  return formatted.length ? formatted : labels.noPhone;
 });
 
 const genderIconSrc = computed(() => {

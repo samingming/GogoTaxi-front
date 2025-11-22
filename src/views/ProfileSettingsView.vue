@@ -44,6 +44,7 @@
                   type="tel"
                   class="info-input"
                   :placeholder="placeholders.phone"
+                  @input="handlePhoneInput"
                   @keyup.enter="savePhone"
                 />
                 <p v-if="errors.phone" class="info-error">{{ errors.phone }}</p>
@@ -223,6 +224,22 @@ const resetForm = () => {
   editForm.passwordConfirm = "";
 };
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (!digits) return "";
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const normalizePhone = (value: string) => value.replace(/\D/g, "");
+
+const handlePhoneInput = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  target.value = formatPhone(target.value);
+  editForm.phone = target.value;
+};
+
 const startEdit = (field: EditableField) => {
   resetErrors();
   editingField.value = field;
@@ -260,14 +277,19 @@ const saveNickname = () => {
 };
 
 const savePhone = () => {
-  const nextPhone = editForm.phone.trim();
-  if (!nextPhone) {
-    errors.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+  const nextPhone = formatPhone(editForm.phone.trim());
+  const digits = normalizePhone(nextPhone);
+  if (!digits) {
+    errors.phone = "전화번호를 입력해 주세요.";
     return;
   }
-  updateProfile({ phone: nextPhone })
+  if (digits.length < 9) {
+    errors.phone = "전화번호를 확인해 주세요.";
+    return;
+  }
+  updateProfile({ phone: digits })
     .then((me) => {
-      account.phone = me.phone || "";
+      account.phone = formatPhone(me.phone || digits);
       cancelEdit();
     })
     .catch((err) => {
@@ -347,7 +369,7 @@ const loadProfile = async () => {
   try {
     const me = await fetchMe();
     account.nickname = me.name || me.loginId;
-    account.phone = me.phone || "";
+    account.phone = formatPhone(me.phone || "");
     account.username = me.loginId;
     account.gender = me.gender === "F" ? "\uC5EC\uC131" : me.gender === "M" ? "\uB0A8\uC131" : "";
     account.birthDate = me.birthDate ? me.birthDate.split("T")[0] : "";
