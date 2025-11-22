@@ -90,12 +90,14 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 // ✅ 백엔드 로그인 API
-import { login as loginApi } from '@/api/auth'
+import type { LoginResponse, SocialLoginResponse } from '@/api/auth'
+import { login as loginApi, socialLogin as socialLoginApi } from '@/api/auth'
 
 // ✅ 소셜 로그인 기존 로직 유지
-import { socialLogin } from '@/services/auth'
+import { socialLogin as socialLoginLocal } from '@/services/auth'
 import { loginWithKakao } from '@/services/kakao'
 import { loginWithGoogle } from '@/services/google'
+import { isAuthApiConfigured } from '@/services/apiAuth'
 
 const router = useRouter()
 const route = useRoute()
@@ -103,6 +105,12 @@ const route = useRoute()
 const id = ref('')
 const pw = ref('')
 const loading = ref(false)
+const useRemoteAuth = isAuthApiConfigured
+
+const PENDING_TOKEN_KEY = 'gogotaxi_pending_social_token'
+const PENDING_PROVIDER_KEY = 'gogotaxi_pending_social_provider'
+const PENDING_NAME_KEY = 'gogotaxi_pending_social_name'
+const PENDING_REDIRECT_KEY = 'gogotaxi_pending_social_redirect'
 
 // 로그인 후 이동할 경로
 function resolveRedirect() {
@@ -122,10 +130,57 @@ function resolveErrorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback
 }
 
+function persistSession(res: LoginResponse) {
+  localStorage.setItem('gogotaxi_token', res.accessToken)
+  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+  localStorage.setItem('gogotaxi_access_token', res.accessToken)
+  if (res.refreshToken) {
+    localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+  }
+}
+
+function storePendingConsent(params: { token: string; provider: string; name?: string; redirect?: string }) {
+  localStorage.setItem(PENDING_TOKEN_KEY, params.token)
+  localStorage.setItem(PENDING_PROVIDER_KEY, params.provider)
+  if (params.name) {
+    localStorage.setItem(PENDING_NAME_KEY, params.name)
+  } else {
+    localStorage.removeItem(PENDING_NAME_KEY)
+  }
+  if (params.redirect) {
+    localStorage.setItem(PENDING_REDIRECT_KEY, params.redirect)
+  } else {
+    localStorage.removeItem(PENDING_REDIRECT_KEY)
+  }
+}
+
+function clearPendingConsent() {
+  localStorage.removeItem(PENDING_TOKEN_KEY)
+  localStorage.removeItem(PENDING_PROVIDER_KEY)
+  localStorage.removeItem(PENDING_NAME_KEY)
+  localStorage.removeItem(PENDING_REDIRECT_KEY)
+}
+
+async function handleRemoteSocial(result: SocialLoginResponse, redirect: string) {
+  if (result.status === 'needs_consent') {
+    storePendingConsent({
+      token: result.pendingToken,
+      provider: result.provider,
+      name: result.profileName ?? undefined,
+      redirect,
+    })
+    router.push({ name: 'social-consent' })
+    return
+  }
+  clearPendingConsent()
+  persistSession(result)
+  router.push(redirect)
+}
+
 // 🔥 실제 로그인 처리
 async function login() {
   if (!id.value || !pw.value) {
-    alert('아이디와 비밀번호를 입력해 주세요.')
+    alert('?????? ??????? ????? ?????.')
     return
   }
 
@@ -133,33 +188,29 @@ async function login() {
 
   try {
     const res = await loginApi(id.value.trim(), pw.value)
-    // res: { user, accessToken, refreshToken, ... }
-
-    // ✅ 반드시 이 두 줄이 실행돼야 localStorage에 보임
-    localStorage.setItem('gogotaxi_token', res.accessToken)
-    localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
-    localStorage.setItem('gogotaxi_access_token', res.accessToken)
-    if (res.refreshToken) {
-      localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
-    }
-
-    // 로그인 후 이동
+    persistSession(res)
     router.push(resolveRedirect())
   } catch (err: unknown) {
     console.error(err)
-    const msg = resolveErrorMessage(err, '로그인에 실패했어요.')
+    const msg = resolveErrorMessage(err, '?????? ????????.')
     alert(msg)
   } finally {
     loading.value = false
   }
 }
-
 // 카카오 로그인
 async function kakaoLogin() {
+  const redirect = resolveRedirect()
+  if (useRemoteAuth) {
+    // Use backend-driven OAuth start to ensure we get pendingToken via callback.
+    const base = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || ''
+    const url = `${base}/api/auth/social/kakao/start?state=${encodeURIComponent(redirect)}`
+    window.location.href = url
+    return
+  }
   try {
-    const redirect = resolveRedirect()
     const profile = await loginWithKakao()
-    const result = socialLogin('kakao', profile, { redirect })
+    const result = socialLoginLocal('kakao', profile, { redirect })
     if (result.status === 'needs_terms') {
       router.push({ name: 'social-consent' })
       return
@@ -170,30 +221,38 @@ async function kakaoLogin() {
     const msg =
       err instanceof Error
         ? err.message
-        : '카카오 로그인이 실패했어요. 다시 시도해 주세요.'
+        : '???? ??????? ????????. ??? ????? ?????.'
     alert(msg)
   }
 }
-
 // 구글 로그인
 async function googleLogin() {
   try {
     const redirect = resolveRedirect()
-    const { code } = await loginWithGoogle()
-    const result = socialLogin(
-      'google',
-      { id: code, name: 'Google 사용자' },
-      { redirect }
-    )
-    if (result.status === 'needs_terms') {
-      router.push({ name: 'social-consent' })
-      return
+    const { accessToken } = await loginWithGoogle()
+    if (useRemoteAuth) {
+      const result = await socialLoginApi({
+        provider: 'google',
+        accessToken,
+        redirectUri: redirect,
+      })
+      await handleRemoteSocial(result, redirect)
+    } else {
+      const result = socialLoginLocal(
+        'google',
+        { id: accessToken, name: 'Google �����' },
+        { redirect }
+      )
+      if (result.status === 'needs_terms') {
+        router.push({ name: 'social-consent' })
+        return
+      }
+      router.push(redirect)
     }
-    router.push(redirect)
   } catch (err: unknown) {
     console.error(err)
     const msg =
-      err instanceof Error ? err.message : 'Google 로그인에 실패했어요.'
+      err instanceof Error ? err.message : 'Google ?????? ????????.'
     alert(msg)
   }
 }
@@ -387,6 +446,3 @@ async function googleLogin() {
   display: none;
 }
 </style>
-
-
-

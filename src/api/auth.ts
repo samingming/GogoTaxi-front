@@ -62,3 +62,40 @@ export async function changePassword(payload: ChangePasswordPayload) {
   const res = await apiClient.patch<{ success: boolean }>('/api/me/password', payload)
   return res.data
 }
+
+export type SocialProvider = 'kakao' | 'google'
+
+export interface SocialLoginRequest {
+  provider: SocialProvider
+  code?: string
+  accessToken?: string
+  profile?: { id: string; name?: string }
+  redirectUri?: string
+}
+
+export type SocialLoginResponse =
+  | ({ status: 'ok' } & LoginResponse)
+  | {
+      status: 'needs_consent'
+      provider: SocialProvider
+      pendingToken: string
+      profileName?: string | null
+    }
+
+export async function socialLogin(payload: SocialLoginRequest) {
+  const res = await apiClient.post<SocialLoginResponse>('/api/auth/social/login', payload)
+  return res.data
+}
+
+export interface SocialConsentPayload {
+  pendingToken: string
+  termsConsent: boolean
+  smsConsent?: boolean
+  name?: string
+  gender?: 'M' | 'F'
+}
+
+export async function completeSocialConsent(payload: SocialConsentPayload) {
+  const res = await apiClient.post<LoginResponse>('/api/auth/social/consent', payload)
+  return res.data
+}

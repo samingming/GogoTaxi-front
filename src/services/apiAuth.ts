@@ -17,11 +17,12 @@ export type LoginPayload = {
 }
 
 const isBrowser = typeof window !== 'undefined'
-export const isAuthApiConfigured = Boolean(import.meta.env.VITE_API_URL)
+const apiBase = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL
+export const isAuthApiConfigured = Boolean(apiBase)
 
 function ensureConfigured() {
   if (!isAuthApiConfigured) {
-    throw new Error('VITE_API_URL이 설정되어 있지 않습니다.')
+    throw new Error('API Base URL env(VITE_API_BASE_URL 또는 VITE_API_URL)가 설정되어 있지 않습니다.')
   }
 }
 
