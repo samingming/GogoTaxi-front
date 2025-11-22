@@ -1,10 +1,13 @@
-﻿<template>
+<template>
   <section class="auth-wrap">
-    <div class="card">
+    <div class="card" v-if="pending !== null || !isPendingSocial">
       <div class="logo">
-        <img src="@/assets/logo_my.png" alt="택시 로고" class="logo-img" />
+        <img src="@/assets/logo_my.png" alt="꼬꼬 로고" class="logo-img" />
       </div>
-      <h1 class="title">회원가입</h1>
+      <h1 class="title">{{ isPendingSocial ? `${providerLabel} 회원 정보 입력` : '회원가입' }}</h1>
+      <p v-if="isPendingSocial" class="description">
+        {{ providerLabel }} 계정으로 연동되었어요.
+      </p>
 
       <form class="form" @submit.prevent="submit">
         <div class="field">
@@ -12,8 +15,13 @@
         </div>
 
         <div class="field row">
-          <input v-model.trim="userid" type="text" placeholder="아이디" />
-          <button type="button" class="ghost" @click="checkId">중복확인</button>
+          <input
+            v-model.trim="userid"
+            type="text"
+            placeholder="아이디"
+            :disabled="isPendingSocial"
+          />
+          <button type="button" class="ghost" @click="checkId" :disabled="isPendingSocial">중복확인</button>
         </div>
 
         <div class="field">
@@ -22,6 +30,7 @@
             type="tel"
             inputmode="tel"
             placeholder="전화번호 (- 없이 입력)"
+            @input="onPhoneInput"
             autocomplete="tel-national"
           />
         </div>
@@ -30,10 +39,22 @@
         </div>
 
         <div class="field">
-          <input v-model="pw" type="password" placeholder="비밀번호" autocomplete="new-password" />
+          <input
+            v-model="pw"
+            type="password"
+            placeholder="비밀번호"
+            autocomplete="new-password"
+            :disabled="isPendingSocial"
+          />
         </div>
         <div class="field">
-          <input v-model="pw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password" />
+          <input
+            v-model="pw2"
+            type="password"
+            placeholder="비밀번호 확인"
+            autocomplete="new-password"
+            :disabled="isPendingSocial"
+          />
         </div>
 
         <div class="gender-group">
@@ -66,23 +87,38 @@
           <label><input type="checkbox" v-model="terms" /> 이용약관 동의(필수)</label>
         </div>
 
-        <button class="primary" type="submit">회원가입</button>
+        <button class="primary" type="submit">
+          {{ isPendingSocial ? '동의하고 계속' : '회원가입' }}
+        </button>
 
         <div class="sub-links center">
-          <router-link to="/login">이미 계정이 있으신가요? 로그인</router-link>
+          <router-link v-if="!isPendingSocial" to="/login">이미 계정이 있으신가요? 로그인</router-link>
+          <button v-else type="button" class="ghost" @click="goLogin">취소</button>
         </div>
       </form>
+    </div>
+    <div class="card" v-else>
+      <h1 class="title">처리할 정보가 없습니다.</h1>
+      <p class="description">로그인 화면으로 돌아가 다시 시도해 주세요.</p>
+      <button class="primary" type="button" @click="goLogin">로그인으로 이동</button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { registerUser } from '@/services/auth'
+import { computed, ref, watchEffect } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import {
+  registerUser,
+  completeSocialOnboarding,
+  getPendingSocial,
+  clearPendingSocial,
+} from '@/services/auth'
 import { signupWithApi, isAuthApiConfigured } from '@/services/apiAuth'
+import { completeSocialConsent, type LoginResponse } from '@/api/auth'
 
 const router = useRouter()
+const route = useRoute()
 
 const name = ref('')
 const userid = ref('')
@@ -95,36 +131,139 @@ const sms = ref(false)
 const terms = ref(false)
 const useRemoteAuth = isAuthApiConfigured
 
+const PENDING_TOKEN_KEY = 'gogotaxi_pending_social_token'
+const PENDING_PROVIDER_KEY = 'gogotaxi_pending_social_provider'
+const PENDING_NAME_KEY = 'gogotaxi_pending_social_name'
+const PENDING_REDIRECT_KEY = 'gogotaxi_pending_social_redirect'
+
+type RemotePending = {
+  token: string
+  provider: 'kakao' | 'google'
+  name?: string
+  redirect?: string
+}
+
+function loadRemotePending(): RemotePending | null {
+  const token = localStorage.getItem(PENDING_TOKEN_KEY)
+  if (!token) return null
+  const provider = localStorage.getItem(PENDING_PROVIDER_KEY) as RemotePending['provider'] | null
+  if (!provider) return null
+  const nameFromStorage = localStorage.getItem(PENDING_NAME_KEY) || undefined
+  const redirect = localStorage.getItem(PENDING_REDIRECT_KEY) || undefined
+  return { token, provider, name: nameFromStorage, redirect }
+}
+
+function syncRemotePendingFromQuery() {
+  const token = typeof route.query.pendingToken === 'string' ? route.query.pendingToken : null
+  const provider = typeof route.query.provider === 'string' ? (route.query.provider as RemotePending['provider']) : null
+  const nameFromQuery = typeof route.query.name === 'string' ? route.query.name : undefined
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+  if (token && provider) {
+    localStorage.setItem(PENDING_TOKEN_KEY, token)
+    localStorage.setItem(PENDING_PROVIDER_KEY, provider)
+    if (nameFromQuery) localStorage.setItem(PENDING_NAME_KEY, nameFromQuery)
+    if (redirect) localStorage.setItem(PENDING_REDIRECT_KEY, redirect)
+  }
+}
+
+function clearRemotePending() {
+  localStorage.removeItem(PENDING_TOKEN_KEY)
+  localStorage.removeItem(PENDING_PROVIDER_KEY)
+  localStorage.removeItem(PENDING_NAME_KEY)
+  localStorage.removeItem(PENDING_REDIRECT_KEY)
+}
+
+if (useRemoteAuth) {
+  syncRemotePendingFromQuery()
+}
+
+const pendingRemote = ref<RemotePending | null>(useRemoteAuth ? loadRemotePending() : null)
+const pendingLocal = ref(useRemoteAuth ? null : getPendingSocial())
+
+if (useRemoteAuth) {
+  const loaded = loadRemotePending()
+  if (loaded) pendingRemote.value = loaded
+}
+
+const pending = computed(() => (useRemoteAuth ? pendingRemote.value : pendingLocal.value))
+const isPendingSocial = computed(() => Boolean(pending.value))
+
+const providerLabel = computed(() => {
+  const provider = pending.value?.provider
+  if (provider === 'kakao') return '카카오'
+  if (provider === 'google') return 'Google'
+  return '소셜'
+})
+
+watchEffect(() => {
+  if (pending.value?.name) {
+    name.value = pending.value.name
+  }
+})
+
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  const len = digits.length
+  if (len < 4) return digits
+  if (len < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+}
+
+function onPhoneInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  const formatted = formatPhone(target.value)
+  phone.value = formatted
+}
+
 function checkId() {
   if (!userid.value) {
     alert('아이디를 입력해 주세요.')
     return
   }
-  alert(`'${userid.value}' 아이디는 사용 가능한 예시입니다.`)
+  alert(`'${userid.value}' 아이디로 가입 가능합니다.`)
+}
+
+function persistSession(res: LoginResponse) {
+  localStorage.setItem('gogotaxi_token', res.accessToken)
+  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+  localStorage.setItem('gogotaxi_access_token', res.accessToken)
+  if (res.refreshToken) {
+    localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+  }
+}
+
+function goLogin() {
+  clearPendingSocial()
+  clearRemotePending()
+  router.replace({ name: 'login' })
 }
 
 async function submit() {
+  if (isPendingSocial.value) {
+    await submitSocial()
+    return
+  }
   const trimmedName = name.value.trim()
   const loginIdInput = userid.value.trim()
   if (!trimmedName || !loginIdInput || !pw.value || !pw2.value || !phone.value || !birthDate.value) {
-    alert('?? ??? ?? ??? ???.')
+    alert('필수 항목을 모두 입력해 주세요.')
     return
   }
   if (!gender.value) {
-    alert('???? ??? ?????.')
+    alert('성별을 선택해 주세요.')
     return
   }
   if (pw.value !== pw2.value) {
-    alert('????? ???? ????.')
+    alert('비밀번호가 일치하지 않습니다.')
     return
   }
   const normalizedPhone = phone.value.replace(/\D/g, '')
   if (normalizedPhone.length < 9) {
-    alert('????? ??? ??? ???.')
+    alert('전화번호를 확인해 주세요.')
     return
   }
   if (!terms.value) {
-    alert('???? ??? ?????.')
+    alert('약관에 동의해 주세요.')
     return
   }
 
@@ -153,14 +292,77 @@ async function submit() {
         terms: terms.value,
       })
     }
-    alert('????? ???????!')
+    alert('회원가입이 완료되었습니다!')
     router.push({ name: 'login' })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '????? ??????.'
+    const msg = err instanceof Error ? err.message : '회원가입에 실패했습니다.'
     alert(msg)
   }
 }
 
+async function submitSocial() {
+  const normalizedPhone = phone.value.replace(/\D/g, '')
+  if (!name.value.trim() || !normalizedPhone || !birthDate.value || !gender.value) {
+    alert('이름, 전화번호, 생년월일, 성별을 모두 입력해 주세요.')
+    return
+  }
+  if (normalizedPhone.length < 9) {
+    alert('전화번호를 확인해 주세요.')
+    return
+  }
+  if (!terms.value) {
+    alert('약관에 동의해 주세요.')
+    return
+  }
+
+  if (useRemoteAuth) {
+    if (!pendingRemote.value) {
+      goLogin()
+      return
+    }
+    try {
+      const res = await completeSocialConsent({
+        pendingToken: pendingRemote.value.token,
+        termsConsent: true,
+        smsConsent: sms.value,
+        name: name.value || pendingRemote.value.name,
+        phone: normalizedPhone,
+        birthDate: birthDate.value,
+        gender: gender.value as 'M' | 'F',
+      })
+      persistSession(res)
+      const redirect = pendingRemote.value.redirect || '/home'
+      clearRemotePending()
+      router.replace(redirect)
+    } catch (error) {
+      console.error(error)
+      alert('동의 처리에 실패했습니다. 다시 시도해 주세요.')
+    }
+    return
+  }
+
+  if (!pendingLocal.value) {
+    goLogin()
+    return
+  }
+
+  try {
+    completeSocialOnboarding({
+      id: pendingLocal.value.id,
+      provider: pendingLocal.value.provider,
+      agreedTerms: true,
+      sms: sms.value,
+      name: name.value || pendingLocal.value.name,
+      gender: gender.value as 'M' | 'F',
+      phone: normalizedPhone,
+      birthDate: birthDate.value,
+    })
+    router.replace(pendingLocal.value.redirect || '/home')
+  } catch (error) {
+    console.error(error)
+    alert('동의 처리에 실패했습니다. 다시 시도해 주세요.')
+  }
+}
 </script>
 
 <style scoped>
@@ -196,9 +398,15 @@ async function submit() {
 }
 .title {
   text-align: center;
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   font-size: 22px;
   font-weight: 700;
+}
+.description {
+  margin: -4px 0 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #5b6471;
 }
 .form {
   display: grid;

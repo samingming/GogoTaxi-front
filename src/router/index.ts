@@ -4,7 +4,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import UserLoginView from '@/views/UserLoginView.vue'
 import UserRegisterView from '@/views/UserRegisterView.vue'
 import FindAccountView from '@/views/FindAccountView.vue'
-import SocialConsentView from '@/views/SocialConsentView.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -13,7 +12,7 @@ const routes = [
   {
     path: '/social-consent',
     name: 'social-consent',
-    component: SocialConsentView,
+    component: UserRegisterView,
     meta: { hideBottomNav: true },
   },
   {

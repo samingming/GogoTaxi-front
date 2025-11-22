@@ -34,7 +34,6 @@ onMounted(() => {
     return
   }
 
-  // optional user info could be provided later; for now just tokens
   persistSession({ accessToken, refreshToken })
   router.replace(redirect || '/home')
 })

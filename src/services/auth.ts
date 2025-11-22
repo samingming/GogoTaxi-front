@@ -42,7 +42,7 @@ function getStorage(): StorageLike {
   return memoryStorage
 }
 
-// 초기 목업 데이터를 한 번만 채워 넣습니다.
+// 초기 목업 데이터는 한 번만 채워 둡니다.
 ;(function seedMockUsers() {
   const storage = getStorage()
   if (storage.getItem(USERS_KEY)) return
@@ -50,7 +50,7 @@ function getStorage(): StorageLike {
   const mock: User[] = [
     {
       id: 'test1',
-      name: '???',
+      name: '홍길동',
       password: '1111',
       phone: '01000000000',
       birthDate: '1990-01-01',
@@ -60,7 +60,7 @@ function getStorage(): StorageLike {
     },
     {
       id: 'kim',
-      name: '???',
+      name: '김철수',
       password: '1234',
       phone: '01012345678',
       birthDate: '1995-05-12',
@@ -151,13 +151,10 @@ export function isAuthed() {
 export function updateUserPassword(id: string, nextPassword: string): Pick<User, 'id' | 'name'> {
   const users = loadUsers()
 
-  // 인덱스 대신 객체로 존재 보장
   const target = users.find(u => u.id === id)
   if (!target) throw new Error('존재하지 않는 아이디입니다.')
 
-  const updatedUsers = users.map(u =>
-    u.id === id ? { ...u, password: nextPassword } as User : u
-  )
+  const updatedUsers = users.map(u => (u.id === id ? ({ ...u, password: nextPassword } as User) : u))
 
   saveUsers(updatedUsers)
 
@@ -194,7 +191,7 @@ export function socialLogin(
   if (index >= 0) {
     const existing = users[index]
     if (!existing) {
-      throw new Error('??? ??? ?? ? ????.')
+      throw new Error('알 수 없는 오류가 발생했습니다.')
     }
     user = existing
     if (!user.name && profile.name) {
@@ -216,6 +213,7 @@ export function socialLogin(
     users.push(user)
     saveUsers(users)
   }
+
   if (!user.terms) {
     const pending: PendingSocial = {
       id: user.id,
@@ -257,6 +255,8 @@ export function completeSocialOnboarding(params: {
   sms?: boolean
   name?: string
   gender?: User['gender']
+  phone?: string
+  birthDate?: string
 }) {
   if (!params.agreedTerms) {
     throw new Error('약관 동의가 필요합니다.')
@@ -264,7 +264,6 @@ export function completeSocialOnboarding(params: {
 
   const users = loadUsers()
 
-  // 인덱스 대신 객체로 존재 보장
   const existing = users.find(u => u.id === params.id)
   if (!existing) {
     throw new Error('사용자 정보를 찾을 수 없습니다.')
@@ -275,12 +274,12 @@ export function completeSocialOnboarding(params: {
     name: params.name?.trim() || existing.name,
     sms: params.sms ?? existing.sms,
     gender: params.gender ?? existing.gender,
+    phone: params.phone ?? existing.phone,
+    birthDate: params.birthDate ?? existing.birthDate,
     terms: true,
   }
 
-  const updatedUsers = users.map(user =>
-    user.id === params.id ? updated : user
-  )
+  const updatedUsers = users.map(user => (user.id === params.id ? updated : user))
   saveUsers(updatedUsers)
 
   const storage = getStorage()

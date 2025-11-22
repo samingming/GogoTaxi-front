@@ -93,6 +93,8 @@ export interface SocialConsentPayload {
   smsConsent?: boolean
   name?: string
   gender?: 'M' | 'F'
+  phone?: string
+  birthDate?: string
 }
 
 export async function completeSocialConsent(payload: SocialConsentPayload) {
