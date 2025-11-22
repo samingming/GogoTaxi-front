@@ -132,13 +132,16 @@ async function login() {
   loading.value = true
 
   try {
-    // id를 email로 사용
-    const res = await loginApi(id.value, pw.value)
-    // res: { user, token }
+    const res = await loginApi(id.value.trim(), pw.value)
+    // res: { user, accessToken, refreshToken, ... }
 
     // ✅ 반드시 이 두 줄이 실행돼야 localStorage에 보임
-    localStorage.setItem('gogotaxi_token', res.token)
+    localStorage.setItem('gogotaxi_token', res.accessToken)
     localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+    localStorage.setItem('gogotaxi_access_token', res.accessToken)
+    if (res.refreshToken) {
+      localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+    }
 
     // 로그인 후 이동
     router.push(resolveRedirect())
@@ -384,3 +387,6 @@ async function googleLogin() {
   display: none;
 }
 </style>
+
+
+

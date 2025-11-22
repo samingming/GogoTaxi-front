@@ -41,12 +41,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import editIcon from "@/assets/edit.svg";
 import profileImage from "@/assets/user.svg";
 import maleBadge from "@/assets/male.svg";
 import femaleBadge from "@/assets/female.svg";
+import { fetchMe } from "@/api/auth";
 
 const router = useRouter();
 
@@ -65,9 +66,9 @@ const labels = {
 type GenderValue = "male" | "female" | "M" | "F" | "\uB0A8\uC131" | "\uC5EC\uC131" | "";
 
 const user = ref({
-  nickname: "\uAE40\uC608\uC740",
-  phone: "010-1234-5678",
-  gender: "\uC5EC\uC131" as GenderValue,
+  nickname: "",
+  phone: "",
+  gender: "" as GenderValue,
 });
 
 const displayNickname = computed(() => {
@@ -109,6 +110,21 @@ const goTo = (page: string) => {
 const openProfileSettings = () => {
   router.push("/mypage/settings");
 };
+
+const loadProfile = async () => {
+  try {
+    const me = await fetchMe();
+    user.value.nickname = me.name || me.loginId || "";
+    user.value.phone = me.phone || "";
+    user.value.gender = (me.gender as GenderValue) || "";
+  } catch (err) {
+    console.error("Failed to load profile", err);
+  }
+};
+
+onMounted(() => {
+  loadProfile();
+});
 </script>
 
 <style scoped>

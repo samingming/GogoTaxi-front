@@ -1,13 +1,18 @@
 import { http } from './http'
 
 export type SignupPayload = {
-  email: string
+  loginId: string
   password: string
-  nickname: string
+  name: string
+  gender: 'M' | 'F'
+  phone: string
+  birthDate: string
+  smsConsent: boolean
+  termsConsent: boolean
 }
 
 export type LoginPayload = {
-  email: string
+  loginId: string
   password: string
 }
 
@@ -23,12 +28,17 @@ function ensureConfigured() {
 function persistToken(data: unknown) {
   if (!isBrowser) return
   const payload = data as Record<string, unknown>
-  const token =
-    (payload?.token as string | undefined) ??
-    (payload?.accessToken as string | undefined) ??
-    (payload?.data as Record<string, unknown>)?.token ??
-    (payload?.data as Record<string, unknown>)?.accessToken
-  if (token) window.localStorage.setItem('auth_token', token)
+  const toStr = (v: unknown) => (typeof v === 'string' ? v : undefined)
+  const accessToken =
+    toStr(payload?.accessToken) ??
+    toStr(payload?.token) ??
+    toStr((payload?.data as Record<string, unknown>)?.accessToken) ??
+    toStr((payload?.data as Record<string, unknown>)?.token)
+  const refreshToken =
+    toStr(payload?.refreshToken) ??
+    toStr((payload?.data as Record<string, unknown>)?.refreshToken)
+  if (accessToken) window.localStorage.setItem('auth_token', accessToken)
+  if (refreshToken) window.localStorage.setItem('auth_refresh_token', refreshToken)
 }
 
 export async function signupWithApi(payload: SignupPayload) {

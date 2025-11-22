@@ -104,8 +104,14 @@ function checkId() {
 }
 
 async function submit() {
-  if (!name.value || !userid.value || !pw.value || !pw2.value || !phone.value || !birthDate.value) {
+  const trimmedName = name.value.trim()
+  const loginIdInput = userid.value.trim()
+  if (!trimmedName || !loginIdInput || !pw.value || !pw2.value || !phone.value || !birthDate.value) {
     alert('?? ??? ?? ??? ???.')
+    return
+  }
+  if (!gender.value) {
+    alert('???? ??? ?????.')
     return
   }
   if (pw.value !== pw2.value) {
@@ -123,16 +129,22 @@ async function submit() {
   }
 
   try {
+    const loginId = loginIdInput
     if (useRemoteAuth) {
       await signupWithApi({
-        email: userid.value,
+        loginId,
         password: pw.value,
-        nickname: name.value || userid.value,
+        name: trimmedName,
+        gender: gender.value as 'M' | 'F',
+        phone: normalizedPhone,
+        birthDate: birthDate.value,
+        smsConsent: sms.value,
+        termsConsent: terms.value,
       })
     } else {
       registerUser({
-        id: userid.value,
-        name: name.value,
+        id: loginId,
+        name: trimmedName,
         password: pw.value,
         phone: normalizedPhone,
         birthDate: birthDate.value,

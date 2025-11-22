@@ -141,9 +141,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onBeforeUnmount } from "vue";
+import { reactive, ref, computed, onBeforeUnmount, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import arrowBackIcon from "@/assets/arrowback.svg";
+import { fetchMe, updateProfile } from "@/api/auth";
 
 const router = useRouter();
 
@@ -178,12 +179,12 @@ const placeholders = {
 };
 
 const account = reactive({
-  nickname: "\uAE40\uC608\uC740",
-  phone: "010-1234-5678",
-  username: "gogotaxi_ye",
-  password: "Taxi!2024",
-  gender: "\uC5EC\uC131",
-  birthDate: "2000-08-15",
+  nickname: "",
+  phone: "",
+  username: "",
+  password: "********",
+  gender: "",
+  birthDate: "",
 });
 
 type EditableField = "nickname" | "phone" | "password";
@@ -247,8 +248,15 @@ const saveNickname = () => {
     errors.nickname = "\uB2C9\uB124\uC784\uC744 \uC785\uB825\uD558\uC138\uC694.";
     return;
   }
-  account.nickname = nextNickname;
-  cancelEdit();
+  updateProfile({ name: nextNickname })
+    .then((me) => {
+      account.nickname = me.name || me.loginId;
+      cancelEdit();
+    })
+    .catch((err) => {
+      console.error(err);
+      errors.nickname = "저장에 실패했습니다.";
+    });
 };
 
 const savePhone = () => {
@@ -257,8 +265,15 @@ const savePhone = () => {
     errors.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
     return;
   }
-  account.phone = nextPhone;
-  cancelEdit();
+  updateProfile({ phone: nextPhone })
+    .then((me) => {
+      account.phone = me.phone || "";
+      cancelEdit();
+    })
+    .catch((err) => {
+      console.error(err);
+      errors.phone = "저장에 실패했습니다.";
+    });
 };
 
 const savePassword = () => {
@@ -319,6 +334,23 @@ const goBack = () => {
 
 onBeforeUnmount(() => {
   resetCopyFeedback();
+});
+
+const loadProfile = async () => {
+  try {
+    const me = await fetchMe();
+    account.nickname = me.name || me.loginId;
+    account.phone = me.phone || "";
+    account.username = me.loginId;
+    account.gender = me.gender === "F" ? "\uC5EC\uC131" : me.gender === "M" ? "\uB0A8\uC131" : "";
+    account.birthDate = me.birthDate ? me.birthDate.split("T")[0] : "";
+  } catch (err) {
+    console.error("Failed to load profile", err);
+  }
+};
+
+onMounted(() => {
+  loadProfile();
 });
 </script>
 
