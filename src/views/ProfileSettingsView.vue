@@ -144,7 +144,7 @@
 import { reactive, ref, computed, onBeforeUnmount, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import arrowBackIcon from "@/assets/arrowback.svg";
-import { fetchMe, updateProfile } from "@/api/auth";
+import { fetchMe, updateProfile, changePassword } from "@/api/auth";
 
 const router = useRouter();
 
@@ -287,8 +287,15 @@ const savePassword = () => {
     errors.password = "\uBE44\uBC00\uBC88\uD638\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
     return;
   }
-  account.password = nextPassword;
-  cancelEdit();
+  changePassword({ currentPassword: editForm.password, newPassword: nextPassword })
+    .then(() => {
+      account.password = "********";
+      cancelEdit();
+    })
+    .catch((err) => {
+      console.error(err);
+      errors.password = "비밀번호 변경에 실패했습니다.";
+    });
 };
 
 const copyUsername = async () => {

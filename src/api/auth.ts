@@ -52,3 +52,13 @@ export async function updateProfile(payload: UpdateProfilePayload) {
   const res = await apiClient.patch<{ me: LoginResponse['user'] }>('/api/me', payload)
   return res.data.me
 }
+
+export interface ChangePasswordPayload {
+  currentPassword: string
+  newPassword: string
+}
+
+export async function changePassword(payload: ChangePasswordPayload) {
+  const res = await apiClient.patch<{ success: boolean }>('/api/me/password', payload)
+  return res.data
+}
