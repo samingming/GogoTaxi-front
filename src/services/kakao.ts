@@ -78,13 +78,19 @@ type KakaoUserResponse = {
   }
 }
 
-export async function loginWithKakao(): Promise<{ id: string; name?: string }> {
+export async function loginWithKakao(): Promise<{ id: string; name?: string; accessToken?: string }> {
   const kakao = await ensureKakao()
+
+  let accessToken: string | undefined
 
   await new Promise<void>((resolve, reject) => {
     kakao.Auth.login({
       scope: 'profile_nickname',
-      success: () => resolve(),
+      success: (response: unknown) => {
+        const token = response as { access_token?: string; accessToken?: string }
+        accessToken = token.accessToken || token.access_token
+        resolve()
+      },
       fail: error => reject(error),
     })
   })
@@ -95,7 +101,7 @@ export async function loginWithKakao(): Promise<{ id: string; name?: string }> {
     if (!id) throw new Error('카카오 사용자 식별자를 가져오지 못했습니다.')
     const nickname =
       profile.kakao_account?.profile?.nickname ?? profile.properties?.nickname ?? undefined
-    return { id, name: nickname }
+    return { id, name: nickname, accessToken }
   } catch (error) {
     kakao.Auth.logout()
     throw error instanceof Error

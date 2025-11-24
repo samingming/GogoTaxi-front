@@ -88,7 +88,13 @@ const labels = {
   femaleBadge: "\uC5EC\uC131 \uD504\uB85C\uD544",
 };
 
-const user = useUserStore();
+type GenderValue = "male" | "female" | "M" | "F" | "\uB0A8\uC131" | "\uC5EC\uC131" | "";
+
+const user = ref({
+  nickname: "\uAE40\uC608\uC740",
+  phone: "010-1234-5678",
+  gender: "\uC5EC\uC131" as GenderValue,
+});
 
 onMounted(() => {
   if (!user.isBalanceLoaded) {
@@ -103,9 +109,18 @@ const displayNickname = computed(() => {
   return nickname?.length ? nickname : labels.noNickname;
 });
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (!digits) return "";
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
 const displayPhone = computed(() => {
-  const phone = user.phone?.trim();
-  return phone?.length ? phone : labels.noPhone;
+  const phone = user.value.phone?.trim();
+  const formatted = phone ? formatPhone(phone) : "";
+  return formatted.length ? formatted : labels.noPhone;
 });
 
 const genderIconSrc = computed(() => {
@@ -142,6 +157,21 @@ const goTo = (page: string) => {
 const openProfileSettings = () => {
   router.push("/mypage/settings");
 };
+
+const loadProfile = async () => {
+  try {
+    const me = await fetchMe();
+    user.value.nickname = me.name || me.loginId || "";
+    user.value.phone = me.phone || "";
+    user.value.gender = (me.gender as GenderValue) || "";
+  } catch (err) {
+    console.error("Failed to load profile", err);
+  }
+};
+
+onMounted(() => {
+  loadProfile();
+});
 
 const chargeWallet = () => {
   router.push("/mypage/charge");

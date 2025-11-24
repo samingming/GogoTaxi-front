@@ -44,6 +44,7 @@
                   type="tel"
                   class="info-input"
                   :placeholder="placeholders.phone"
+                  @input="handlePhoneInput"
                   @keyup.enter="savePhone"
                 />
                 <p v-if="errors.phone" class="info-error">{{ errors.phone }}</p>
@@ -141,9 +142,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onBeforeUnmount } from "vue";
+import { reactive, ref, computed, onBeforeUnmount, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import arrowBackIcon from "@/assets/arrowback.svg";
+import { fetchMe, updateProfile, changePassword } from "@/api/auth";
 
 const router = useRouter();
 
@@ -178,12 +180,12 @@ const placeholders = {
 };
 
 const account = reactive({
-  nickname: "\uAE40\uC608\uC740",
-  phone: "010-1234-5678",
-  username: "gogotaxi_ye",
-  password: "Taxi!2024",
-  gender: "\uC5EC\uC131",
-  birthDate: "2000-08-15",
+  nickname: "",
+  phone: "",
+  username: "",
+  password: "********",
+  gender: "",
+  birthDate: "",
 });
 
 type EditableField = "nickname" | "phone" | "password";
@@ -222,6 +224,22 @@ const resetForm = () => {
   editForm.passwordConfirm = "";
 };
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (!digits) return "";
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const normalizePhone = (value: string) => value.replace(/\D/g, "");
+
+const handlePhoneInput = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  target.value = formatPhone(target.value);
+  editForm.phone = target.value;
+};
+
 const startEdit = (field: EditableField) => {
   resetErrors();
   editingField.value = field;
@@ -247,18 +265,37 @@ const saveNickname = () => {
     errors.nickname = "\uB2C9\uB124\uC784\uC744 \uC785\uB825\uD558\uC138\uC694.";
     return;
   }
-  account.nickname = nextNickname;
-  cancelEdit();
+  updateProfile({ name: nextNickname })
+    .then((me) => {
+      account.nickname = me.name || me.loginId;
+      cancelEdit();
+    })
+    .catch((err) => {
+      console.error(err);
+      errors.nickname = "저장에 실패했습니다.";
+    });
 };
 
 const savePhone = () => {
-  const nextPhone = editForm.phone.trim();
-  if (!nextPhone) {
-    errors.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+  const nextPhone = formatPhone(editForm.phone.trim());
+  const digits = normalizePhone(nextPhone);
+  if (!digits) {
+    errors.phone = "전화번호를 입력해 주세요.";
     return;
   }
-  account.phone = nextPhone;
-  cancelEdit();
+  if (digits.length < 9) {
+    errors.phone = "전화번호를 확인해 주세요.";
+    return;
+  }
+  updateProfile({ phone: digits })
+    .then((me) => {
+      account.phone = formatPhone(me.phone || digits);
+      cancelEdit();
+    })
+    .catch((err) => {
+      console.error(err);
+      errors.phone = "저장에 실패했습니다.";
+    });
 };
 
 const savePassword = () => {
@@ -272,8 +309,15 @@ const savePassword = () => {
     errors.password = "\uBE44\uBC00\uBC88\uD638\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
     return;
   }
-  account.password = nextPassword;
-  cancelEdit();
+  changePassword({ currentPassword: editForm.password, newPassword: nextPassword })
+    .then(() => {
+      account.password = "********";
+      cancelEdit();
+    })
+    .catch((err) => {
+      console.error(err);
+      errors.password = "비밀번호 변경에 실패했습니다.";
+    });
 };
 
 const copyUsername = async () => {
@@ -319,6 +363,23 @@ const goBack = () => {
 
 onBeforeUnmount(() => {
   resetCopyFeedback();
+});
+
+const loadProfile = async () => {
+  try {
+    const me = await fetchMe();
+    account.nickname = me.name || me.loginId;
+    account.phone = formatPhone(me.phone || "");
+    account.username = me.loginId;
+    account.gender = me.gender === "F" ? "\uC5EC\uC131" : me.gender === "M" ? "\uB0A8\uC131" : "";
+    account.birthDate = me.birthDate ? me.birthDate.split("T")[0] : "";
+  } catch (err) {
+    console.error("Failed to load profile", err);
+  }
+};
+
+onMounted(() => {
+  loadProfile();
 });
 </script>
 

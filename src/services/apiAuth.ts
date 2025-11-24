@@ -1,37 +1,45 @@
 import { http } from './http'
 
 export type SignupPayload = {
-  email: string
+  loginId: string
   password: string
-  nickname: string
+  name: string
+  gender: 'M' | 'F'
+  phone: string
+  birthDate: string
+  smsConsent: boolean
+  termsConsent: boolean
 }
 
 export type LoginPayload = {
-  email: string
+  loginId: string
   password: string
 }
 
 const isBrowser = typeof window !== 'undefined'
-export const isAuthApiConfigured = Boolean(import.meta.env.VITE_API_URL)
+const apiBase = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL
+export const isAuthApiConfigured = Boolean(apiBase)
 
 function ensureConfigured() {
   if (!isAuthApiConfigured) {
-    throw new Error('VITE_API_URL이 설정되어 있지 않습니다.')
+    throw new Error('API Base URL env(VITE_API_BASE_URL 또는 VITE_API_URL)가 설정되어 있지 않습니다.')
   }
 }
 
 function persistToken(data: unknown) {
   if (!isBrowser) return
   const payload = data as Record<string, unknown>
-  const tokenCandidate =
-    (payload?.token as string | undefined) ??
-    (payload?.accessToken as string | undefined) ??
-    ((payload?.data as Record<string, unknown>)?.token as string | undefined) ??
-    ((payload?.data as Record<string, unknown>)?.accessToken as string | undefined)
-
-  if (typeof tokenCandidate === 'string') {
-    window.localStorage.setItem('auth_token', tokenCandidate)
-  }
+  const toStr = (v: unknown) => (typeof v === 'string' ? v : undefined)
+  const accessToken =
+    toStr(payload?.accessToken) ??
+    toStr(payload?.token) ??
+    toStr((payload?.data as Record<string, unknown>)?.accessToken) ??
+    toStr((payload?.data as Record<string, unknown>)?.token)
+  const refreshToken =
+    toStr(payload?.refreshToken) ??
+    toStr((payload?.data as Record<string, unknown>)?.refreshToken)
+  if (accessToken) window.localStorage.setItem('auth_token', accessToken)
+  if (refreshToken) window.localStorage.setItem('auth_refresh_token', refreshToken)
 }
 
 export async function signupWithApi(payload: SignupPayload) {

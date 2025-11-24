@@ -2,22 +2,46 @@
   <section class="auth-wrap">
     <div class="card" v-if="pending">
       <div class="logo">
-        <img src="@/assets/logo_my.png" alt="꼬꼬택 로고" class="logo-img" />
+        <img src="@/assets/logo_my.png" alt="꼬꼬로고" class="logo-img" />
       </div>
       <h1 class="title">{{ providerLabel }} 약관 동의</h1>
-      <p class="description">
-        {{ providerLabel }} 계정으로 계속하려면 이용약관에 동의해 주세요.
-      </p>
+      <p class="description">{{ providerLabel }} 계정으로 계속하려면 이용약관에 동의해 주세요.</p>
 
       <form class="form" @submit.prevent="submit">
         <div class="field">
           <label class="field-label" for="social-name">이름</label>
+          <input id="social-name" v-model.trim="name" type="text" placeholder="이름을 입력해 주세요." />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="social-phone">휴대폰 번호</label>
           <input
-            id="social-name"
-            v-model.trim="name"
-            type="text"
-            placeholder="이름을 입력해 주세요."
+            id="social-phone"
+            v-model.trim="phone"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel-national"
+            placeholder="숫자만 입력해 주세요."
           />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="social-birth">생년월일</label>
+          <input id="social-birth" v-model="birthDate" type="date" />
+        </div>
+
+        <div class="gender-group">
+          <span class="group-label">성별</span>
+          <div class="gender-options">
+            <label class="gender-option male">
+              <input type="radio" value="M" v-model="gender" />
+              <span class="chip"><span class="text">남성</span></span>
+            </label>
+            <label class="gender-option female">
+              <input type="radio" value="F" v-model="gender" />
+              <span class="chip"><span class="text">여성</span></span>
+            </label>
+          </div>
         </div>
 
         <div class="agreements">
@@ -46,29 +70,98 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import {
-  completeSocialOnboarding,
-  getPendingSocial,
-  clearPendingSocial,
-} from '@/services/auth'
+import { useRouter, useRoute } from 'vue-router'
+import { completeSocialOnboarding, getPendingSocial, clearPendingSocial } from '@/services/auth'
+import { completeSocialConsent, type LoginResponse } from '@/api/auth'
+import { isAuthApiConfigured } from '@/services/apiAuth'
 
 const router = useRouter()
-const pending = ref(getPendingSocial())
+const route = useRoute()
+const useRemoteAuth = isAuthApiConfigured
 
-const name = ref(pending.value?.name ?? '')
+const PENDING_TOKEN_KEY = 'gogotaxi_pending_social_token'
+const PENDING_PROVIDER_KEY = 'gogotaxi_pending_social_provider'
+const PENDING_NAME_KEY = 'gogotaxi_pending_social_name'
+const PENDING_REDIRECT_KEY = 'gogotaxi_pending_social_redirect'
+
+type RemotePending = {
+  token: string
+  provider: 'kakao' | 'google'
+  name?: string
+  redirect?: string
+}
+
+function loadRemotePending(): RemotePending | null {
+  const token = localStorage.getItem(PENDING_TOKEN_KEY)
+  if (!token) return null
+  const provider = localStorage.getItem(PENDING_PROVIDER_KEY) as RemotePending['provider'] | null
+  if (!provider) return null
+  const name = localStorage.getItem(PENDING_NAME_KEY) || undefined
+  const redirect = localStorage.getItem(PENDING_REDIRECT_KEY) || undefined
+  return { token, provider, name, redirect }
+}
+
+function syncRemotePendingFromQuery() {
+  const token = typeof route.query.pendingToken === 'string' ? route.query.pendingToken : null
+  const provider = typeof route.query.provider === 'string' ? (route.query.provider as RemotePending['provider']) : null
+  const name = typeof route.query.name === 'string' ? route.query.name : undefined
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+  if (token && provider) {
+    localStorage.setItem(PENDING_TOKEN_KEY, token)
+    localStorage.setItem(PENDING_PROVIDER_KEY, provider)
+    if (name) localStorage.setItem(PENDING_NAME_KEY, name)
+    if (redirect) localStorage.setItem(PENDING_REDIRECT_KEY, redirect)
+  }
+}
+
+if (useRemoteAuth) {
+  syncRemotePendingFromQuery()
+}
+
+function clearRemotePending() {
+  localStorage.removeItem(PENDING_TOKEN_KEY)
+  localStorage.removeItem(PENDING_PROVIDER_KEY)
+  localStorage.removeItem(PENDING_NAME_KEY)
+  localStorage.removeItem(PENDING_REDIRECT_KEY)
+}
+
+const pendingRemote = ref<RemotePending | null>(useRemoteAuth ? loadRemotePending() : null)
+const pendingLocal = ref(useRemoteAuth ? null : getPendingSocial())
+
+// Ensure reactive pending gets refreshed when arriving via query params
+if (useRemoteAuth) {
+  const loaded = loadRemotePending()
+  if (loaded) pendingRemote.value = loaded
+}
+
+const pending = computed(() => (useRemoteAuth ? pendingRemote.value : pendingLocal.value))
+
+const name = ref(pendingRemote.value?.name ?? pendingLocal.value?.name ?? '')
+const phone = ref('')
+const birthDate = ref('')
+const gender = ref<'M' | 'F' | ''>('')
 const sms = ref(false)
 const terms = ref(false)
 
 const providerLabel = computed(() => {
-  const provider = pending.value?.provider
+  const provider = useRemoteAuth ? pendingRemote.value?.provider : pendingLocal.value?.provider
   if (provider === 'kakao') return '카카오'
   if (provider === 'google') return 'Google'
   return '소셜'
 })
 
+function persistSession(res: LoginResponse) {
+  localStorage.setItem('gogotaxi_token', res.accessToken)
+  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+  localStorage.setItem('gogotaxi_access_token', res.accessToken)
+  if (res.refreshToken) {
+    localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+  }
+}
+
 function goLogin() {
   clearPendingSocial()
+  clearRemotePending()
   router.replace({ name: 'login' })
 }
 
@@ -76,28 +169,67 @@ function cancel() {
   goLogin()
 }
 
-function submit() {
-  if (!pending.value) {
+async function submit() {
+  if (useRemoteAuth) {
+    if (!pendingRemote.value) {
+      goLogin()
+      return
+    }
+    const normalizedPhone = phone.value.replace(/\D/g, '')
+    if (!name.value.trim() || !normalizedPhone || !birthDate.value || !gender.value) {
+      alert('이름, 휴대폰번호, 생년월일, 성별을 모두 입력해 주세요.')
+      return
+    }
+    if (normalizedPhone.length < 9) {
+      alert('휴대폰 번호를 확인해 주세요.')
+      return
+    }
+    if (!terms.value) {
+      alert('약관에 동의해 주세요.')
+      return
+    }
+    try {
+      const res = await completeSocialConsent({
+        pendingToken: pendingRemote.value.token,
+        termsConsent: true,
+        smsConsent: sms.value,
+        name: name.value || pendingRemote.value.name,
+        phone: normalizedPhone,
+        birthDate: birthDate.value,
+        gender: gender.value as 'M' | 'F',
+      })
+      persistSession(res)
+      const redirect = pendingRemote.value.redirect || '/home'
+      clearRemotePending()
+      router.replace(redirect)
+    } catch (error) {
+      console.error(error)
+      alert('요청을 처리하지 못했습니다. 다시 시도해 주세요.')
+    }
+    return
+  }
+
+  if (!pendingLocal.value) {
     goLogin()
     return
   }
   if (!terms.value) {
-    alert('이용약관 동의는 필수입니다.')
+    alert('약관에 동의해 주세요.')
     return
   }
 
   try {
     completeSocialOnboarding({
-      id: pending.value.id,
-      provider: pending.value.provider,
+      id: pendingLocal.value.id,
+      provider: pendingLocal.value.provider,
       agreedTerms: true,
       sms: sms.value,
-      name: name.value || pending.value.name,
+      name: name.value || pendingLocal.value.name,
     })
-    router.replace(pending.value.redirect || '/home')
+    router.replace(pendingLocal.value.redirect || '/home')
   } catch (error) {
     console.error(error)
-    alert('처리 중 오류가 발생했습니다. 다시 시도해 주세요.')
+    alert('요청을 처리하지 못했습니다. 다시 시도해 주세요.')
   }
 }
 </script>
@@ -112,11 +244,11 @@ function submit() {
 }
 .card {
   width: 100%;
-  max-width: 360px;
+  max-width: 420px;
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
-  padding: 28px 22px 26px;
+  padding: 28px 24px 26px;
   display: grid;
   gap: 16px;
 }
@@ -173,6 +305,65 @@ function submit() {
 .field input:focus {
   border-color: #8aa8ff;
   background: #fff;
+}
+.gender-group {
+  display: grid;
+  gap: 8px;
+}
+.group-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3d475c;
+}
+.gender-options {
+  display: flex;
+  gap: 12px;
+}
+.gender-option {
+  flex: 1;
+  position: relative;
+}
+.gender-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #e3e6ec;
+  background: #fff;
+  font-weight: 600;
+  color: #4f566b;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s, color 0.2s;
+}
+.gender-option.male .chip {
+  color: #3b63ff;
+  border-color: #d7e0ff;
+  background: #f3f6ff;
+}
+.gender-option.female .chip {
+  color: #ff6fae;
+  border-color: #ffd6ec;
+  background: #fff3fa;
+}
+.gender-option input:checked + .chip {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+}
+.gender-option.male input:checked + .chip {
+  border-color: #3b63ff;
+  background: #e8eeff;
+  color: #1d3dff;
+}
+.gender-option.female input:checked + .chip {
+  border-color: #ff73b5;
+  background: #ffe9f4;
+  color: #ff3a9a;
 }
 .agreements {
   display: grid;

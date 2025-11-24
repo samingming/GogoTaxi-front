@@ -1,23 +1,22 @@
-type OAuthCodeResponse = {
-  code?: string
+type OAuthTokenResponse = {
+  access_token?: string
   error?: string
   error_description?: string
 }
 
-type OAuthCodeClient = {
-  requestCode(): void
+type OAuthTokenClient = {
+  requestAccessToken(config?: { prompt?: string }): void
 }
 
 type GoogleSDK = {
   accounts?: {
     oauth2?: {
-      initCodeClient(config: {
+      initTokenClient(config: {
         client_id: string
         scope: string
-        ux_mode?: 'popup' | 'redirect'
         prompt?: string
-        callback: (response: OAuthCodeResponse) => void
-      }): OAuthCodeClient
+        callback: (response: OAuthTokenResponse) => void
+      }): OAuthTokenClient
     }
   }
 }
@@ -65,14 +64,14 @@ function loadGoogleSDK(): Promise<void> {
   return loadPromise
 }
 
-export async function loginWithGoogle(): Promise<{ code: string }> {
+export async function loginWithGoogle(): Promise<{ accessToken: string }> {
   if (typeof window === 'undefined') {
     throw new Error('Google SDK는 브라우저에서만 사용할 수 있습니다.')
   }
 
   await loadGoogleSDK()
   const google = window.google
-  if (!google?.accounts?.oauth2?.initCodeClient) {
+  if (!google?.accounts?.oauth2?.initTokenClient) {
     throw new Error('Google OAuth 클라이언트를 초기화할 수 없습니다.')
   }
 
@@ -82,13 +81,13 @@ export async function loginWithGoogle(): Promise<{ code: string }> {
   }
 
   return await new Promise((resolve, reject) => {
-    const client = google.accounts!.oauth2!.initCodeClient({
+    const client = google.accounts!.oauth2!.initTokenClient({
       client_id: clientId,
       scope: 'profile email',
-      ux_mode: 'popup',
+      prompt: 'consent',
       callback: response => {
-        if (response.code) {
-          resolve({ code: response.code })
+        if (response.access_token) {
+          resolve({ accessToken: response.access_token })
         } else {
           const message = response.error_description || response.error || 'Google 로그인에 실패했습니다.'
           reject(new Error(message))
@@ -97,7 +96,7 @@ export async function loginWithGoogle(): Promise<{ code: string }> {
     })
 
     try {
-      client.requestCode()
+      client.requestAccessToken({ prompt: 'consent' })
     } catch (err) {
       reject(err instanceof Error ? err : new Error('Google 로그인 요청 중 오류가 발생했습니다.'))
     }
