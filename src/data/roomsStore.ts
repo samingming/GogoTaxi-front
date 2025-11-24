@@ -16,6 +16,8 @@ const seedRooms: RoomPreview[] = [
     },
     time: '오늘 23:30 출발',
     seats: 2,
+    capacity: 4,
+    filled: 2,
     tags: ['공항', '야간'],
   },
   {
@@ -31,6 +33,8 @@ const seedRooms: RoomPreview[] = [
     },
     time: '내일 07:10 출발',
     seats: 1,
+    capacity: 4,
+    filled: 3,
     tags: ['출근', '아침'],
   },
   {
@@ -46,6 +50,8 @@ const seedRooms: RoomPreview[] = [
     },
     time: '오늘 20:00 출발',
     seats: 3,
+    capacity: 4,
+    filled: 1,
     tags: ['직장인', '조용한분'],
   },
 ]

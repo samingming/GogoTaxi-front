@@ -22,8 +22,8 @@ export type RoomPreview = {
   fare?: number
   status?: 'recruiting' | 'dispatching' | 'success' | 'failed'
   taxi?: {
-    carNumber: string
-    driverName: string
-    carModel: string
+    carNumber?: string
+    driverName?: string
+    carModel?: string
   }
 }

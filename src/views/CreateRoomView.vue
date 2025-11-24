@@ -167,7 +167,7 @@
 
         <footer class="actions">
           <button type="button" class="ghost-button reset-button" @click="resetForm">초기화</button>
-          <button type="submit" class="primary-button" :disabled="!isValid">
+          <button type="submit" class="primary-button" :disabled="!isValid || isSubmitting">
             방 생성하기
           </button>
         </footer>
@@ -211,13 +211,12 @@
 import { computed, nextTick, reactive, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import TimePicker from '@/components/TimePicker.vue'
-import type { RoomPreview } from '@/types/rooms'
 import { loadKakaoMaps, type KakaoNamespace } from '@/services/kakaoMaps'
+import { createRoom, type CreateRoomPayload } from '@/api/rooms'
 import {
   createPaymentSections,
   type PaymentMethod as StoredPaymentMethod,
 } from '@/data/paymentMethods'
-import { addRoom } from '@/data/roomsStore'
 
 type Priority = 'time' | 'seats'
 type FieldKind = 'departure' | 'arrival'
@@ -324,6 +323,7 @@ setTimePickerState(form.departureTime)
 
 const errorMessage = ref('')
 const successMessage = ref('')
+const isSubmitting = ref(false)
 const estimatedFare = ref(0)
 const estimatedDistanceKm = ref(0)
 
@@ -686,48 +686,119 @@ function resetForm() {
   selectedPaymentMethodId.value = availablePaymentMethods[0]?.id ?? ''
 }
 
-function submitForm() {
-  errorMessage.value = ''
-  successMessage.value = ''
-
-  if (!isValid.value) {
-    errorMessage.value = '필수 정보를 모두 입력하고 출발/도착지를 정확히 선택해 주세요.'
-    return
+function toLocationPayload(place: SelectedPlace) {
+  return {
+    label: place.name,
+    name: place.name,
+    address: place.address,
+    lat: place.position.lat,
+    lng: place.position.lng,
+    position: { ...place.position },
   }
+}
 
-  if (!form.departure || !form.arrival) return
+function safeNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return undefined
+}
 
+function buildDepartureTimeIsoString(value: string) {
+  if (!value) return undefined
+  const [hourToken, minuteToken] = value.split(':')
+  const hours = Number(hourToken)
+  const minutes = Number(minuteToken)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return undefined
+  const date = new Date()
+  date.setSeconds(0, 0)
+  date.setMilliseconds(0)
+  date.setHours(hours, minutes, 0, 0)
+  return date.toISOString()
+}
+
+function buildCreateRoomPayload(): CreateRoomPayload {
+  if (!form.departure || !form.arrival) {
+    throw new Error('출발지와 도착지를 모두 선택해 주세요.')
+  }
+  const departureLocation = toLocationPayload(form.departure)
+  const arrivalLocation = toLocationPayload(form.arrival)
   const remainingSeats = form.priority === 'seats' ? 3 : 2
   const capacity = DEFAULT_ROOM_CAPACITY
   const filled = Math.max(0, capacity - remainingSeats)
+  const tags = [
+    form.priority === 'time' ? '시간 우선' : '인원 우선',
+    form.paymentMethod || '결제수단 미정',
+  ].filter(Boolean)
 
-  const newRoom: RoomPreview = {
-    id: `room-${Date.now()}`,
-    title: form.title.trim() || '꼬꼬택과 고고 택시~',
-    departure: {
-      label: form.departure.name,
-      position: { ...form.departure.position },
-    },
-    arrival: {
-      label: form.arrival.name,
-      position: { ...form.arrival.position },
-    },
+  return {
+    title: form.title.trim() || '나만의 택시팟',
+    departure: departureLocation,
+    arrival: arrivalLocation,
+    departureLabel: departureLocation.label || departureLocation.name,
+    departureLat: safeNumber(departureLocation.lat ?? departureLocation.position?.lat),
+    departureLng: safeNumber(departureLocation.lng ?? departureLocation.position?.lng),
+    arrivalLabel: arrivalLocation.label || arrivalLocation.name,
+    arrivalLat: safeNumber(arrivalLocation.lat ?? arrivalLocation.position?.lat),
+    arrivalLng: safeNumber(arrivalLocation.lng ?? arrivalLocation.position?.lng),
+    departureTime: buildDepartureTimeIsoString(form.departureTime),
     time: preview.value.time,
+    priority: form.priority,
+    paymentMethod: form.paymentMethod || undefined,
+    tags,
     seats: remainingSeats,
     capacity,
     filled,
-    tags: [
-      form.priority === 'time' ? '시간 우선' : '인원 우선',
-      form.paymentMethod || '결제수단 미지정',
-  ],
+    fare: estimatedFare.value || undefined,
+    estimatedFare: estimatedFare.value || undefined,
+    estimatedDistanceKm: estimatedDistanceKm.value || undefined,
+  }
 }
 
-  addRoom(newRoom)
-  successMessage.value = ''
-  setTimeout(() => {
-    router.push({ name: 'find-room' })
-    resetForm()
-  }, 400)
+async function submitForm() {
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (!isValid.value) {
+    errorMessage.value = '?? ??? ?? ???? ??/??? ??? ???.'
+    return
+  }
+
+  if (isSubmitting.value) return
+
+  let payload: CreateRoomPayload
+  try {
+    payload = buildCreateRoomPayload()
+  } catch (buildError) {
+    errorMessage.value =
+      buildError instanceof Error && buildError.message
+        ? buildError.message
+        : '???? ???? ??? ???.'
+    return
+  }
+
+  try {
+    isSubmitting.value = true
+    const createdRoom = await createRoom(payload)
+    successMessage.value = '?? ??????! ? ????.'
+    setTimeout(() => {
+      if (createdRoom?.id) {
+        router.push({ name: 'room-detail', params: { id: createdRoom.id } })
+      } else {
+        router.push({ name: 'find-room' })
+      }
+      resetForm()
+    }, 500)
+  } catch (error) {
+    errorMessage.value =
+      error instanceof Error && error.message
+        ? error.message
+        : '?? ??? ????. ?? ? ?? ??? ???.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 </script>

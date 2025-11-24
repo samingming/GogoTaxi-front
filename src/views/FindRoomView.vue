@@ -25,6 +25,14 @@
           <div class="sheet__title-text">
             <h1>탐색 중인 방</h1>
             <p>{{ sortedRooms.length }}개의 방을 찾았어요.</p>
+            <p
+              v-if="hasRoomsStatus"
+              class="sheet__status"
+              :class="{ 'sheet__status--error': roomsError }"
+            >
+              {{ roomsStatusMessage }}
+            </p>
+
           </div>
         </div>
         <div class="sheet__actions">
@@ -65,7 +73,7 @@
         :hint="sortHint"
         @close="closeSortModal"
         @confirm="confirmSortOptions"
-        @select-sort-mode="value => (draftSortMode = value)"
+        @select-sort-mode="handleSelectSortMode"
         @use-current-location="useCurrentLocation"
         @open-picker="mode => openPicker(mode, 'draft')"
         @clear-desired="mode => clearDesired(mode, 'draft')"
@@ -169,7 +177,7 @@ import RoomMap from '@/components/RoomMap.vue'
 import LocationPicker from '@/components/LocationPicker.vue'
 import TimePicker from '@/components/TimePicker.vue'
 import SortOptionsModal from '@/components/SortOptionsModal.vue'
-import { mockRooms } from '@/data/mockRooms'
+import { fetchAvailableRooms } from '@/api/rooms'
 import type { RoomPreview, GeoPoint } from '@/types/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
 
@@ -181,7 +189,16 @@ const SNAP_THRESHOLD = 6
 
 const router = useRouter()
 const { joinRoom: rememberRoom } = useRoomMembership()
-const rooms = ref<RoomPreview[]>([...mockRooms])
+const rooms = ref<RoomPreview[]>([])
+const selectedRoom = ref<RoomPreview | null>(null)
+const isLoadingRooms = ref(false)
+const roomsError = ref<string | null>(null)
+const roomsStatusMessage = computed(() => {
+  if (roomsError.value) return roomsError.value
+  if (isLoadingRooms.value) return '�� ��� ����� �����ϴ�...'
+  return ''
+})
+const hasRoomsStatus = computed(() => Boolean(roomsStatusMessage.value))
 type SortMode = 'default' | 'nearest-departure' | 'nearest-arrival' | 'departure-time'
 type SelectedLocation = { position: GeoPoint; label: string }
 const sortMode = ref<SortMode>('default')
@@ -211,10 +228,33 @@ const draftPreferredHour = ref('')
 const draftPreferredMinute = ref('')
 const pickerContext = ref<'applied' | 'draft'>('applied')
 const timePickerContext = ref<'applied' | 'draft'>('applied')
+const SORT_PARAM_MAP: Record<SortMode, string> = {
+  default: 'default',
+  'nearest-departure': 'departureDistance',
+  'nearest-arrival': 'arrivalDistance',
+  'departure-time': 'time',
+}
+
+async function loadRooms() {
+  isLoadingRooms.value = true
+  roomsError.value = null
+  try {
+    const fetched = await fetchAvailableRooms(buildRoomQueryParams())
+    rooms.value = fetched
+    if (selectedRoom.value && !fetched.some(room => room.id === selectedRoom.value?.id)) {
+      selectedRoom.value = null
+    }
+  } catch (error) {
+    roomsError.value =
+      error instanceof Error ? error.message : '�� ��� ����� ������ �� �����ϴ�.'
+  } finally {
+    isLoadingRooms.value = false
+  }
+}
 
 function useCurrentLocation() {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    alert('이 브라우저에서는 위치 정보를 사용할 수 없습니다.')
+    alert('이 브라우저에서는 위치 정보를 사용할 수 없어요.')
     return
   }
   isLocating.value = true
@@ -223,40 +263,17 @@ function useCurrentLocation() {
       userLocation.value = { lat: pos.coords.latitude, lng: pos.coords.longitude }
       isLocating.value = false
       locationError.value = null
+      if (sortMode.value === 'nearest-departure' && !desiredDeparture.value) {
+        loadRooms()
+      }
     },
     error => {
       isLocating.value = false
       locationError.value = error.message
-      alert('위치 정보를 가져올 수 없습니다. 권한 설정을 확인해 주세요.')
+      alert('위치 정보를 가져오지 못했어요. 권한 설정을 확인해 주세요.')
     },
     { enableHighAccuracy: true, timeout: 8000 },
   )
-}
-
-function toRadians(value: number) {
-  return (value * Math.PI) / 180
-}
-
-function distanceBetween(a: GeoPoint, b: GeoPoint) {
-  const R = 6371000
-  const dLat = toRadians(b.lat - a.lat)
-  const dLng = toRadians(b.lng - a.lng)
-  const lat1 = toRadians(a.lat)
-  const lat2 = toRadians(b.lat)
-  const sinLat = Math.sin(dLat / 2)
-  const sinLng = Math.sin(dLng / 2)
-  const aHarv = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng
-  const c = 2 * Math.atan2(Math.sqrt(aHarv), Math.sqrt(1 - aHarv))
-  return R * c
-}
-
-function parseRoomDeparture(room: RoomPreview) {
-  const match = room.time.match(/(\d{1,2}):(\d{2})/)
-  if (!match) return null
-  const [hours, minutes] = match.slice(1).map(Number)
-  const date = new Date()
-  date.setHours(hours ?? 0, minutes ?? 0, 0, 0)
-  return date
 }
 
 const hasPreferredTime = computed(() => Boolean(preferredHour.value && preferredMinute.value))
@@ -264,66 +281,7 @@ const hasDraftPreferredTime = computed(
   () => Boolean(draftPreferredHour.value && draftPreferredMinute.value),
 )
 
-function parsePreferredDepartureTime() {
-  if (!hasPreferredTime.value) return null
-  let hour = Number(preferredHour.value)
-  if (Number.isNaN(hour)) return null
-  hour = hour % 12
-  if (preferredPeriod.value === 'PM') {
-    hour += 12
-  }
-  const minute = Number(preferredMinute.value)
-  if (Number.isNaN(minute)) return null
-  const date = new Date()
-  date.setHours(hour ?? 0, minute ?? 0, 0, 0)
-  return date
-}
-
-const sortedRooms = computed(() => {
-  const base = [...rooms.value]
-  switch (sortMode.value) {
-    case 'nearest-departure':
-      {
-        const anchor = desiredDeparture.value?.position ?? userLocation.value
-        if (!anchor) return base
-        return base.sort(
-          (a, b) =>
-            distanceBetween(anchor, a.departure.position) -
-            distanceBetween(anchor, b.departure.position),
-        )
-      }
-    case 'nearest-arrival':
-      if (!desiredArrival.value) return base
-      const anchor = desiredArrival.value.position
-      return base.sort(
-        (a, b) =>
-          distanceBetween(anchor, a.arrival.position) -
-          distanceBetween(anchor, b.arrival.position),
-      )
-    case 'departure-time':
-      {
-        const preferred = parsePreferredDepartureTime()
-        if (!preferred) return base
-        return base.sort((a, b) => {
-          const aDate = parseRoomDeparture(a)
-          const bDate = parseRoomDeparture(b)
-          if (!aDate || !bDate) return 0
-          const timeDiff =
-            Math.abs(aDate.getTime() - preferred.getTime()) -
-            Math.abs(bDate.getTime() - preferred.getTime())
-          if (timeDiff !== 0) return timeDiff
-          const location = desiredDeparture.value?.position ?? userLocation.value
-          if (!location) return timeDiff
-          return (
-            distanceBetween(location, a.departure.position) -
-            distanceBetween(location, b.departure.position)
-          )
-        })
-      }
-    default:
-      return base
-  }
-})
+const sortedRooms = computed(() => rooms.value)
 
 const hintSortMode = computed(() => (showSortOptions.value ? draftSortMode.value : sortMode.value))
 const hintDesiredDeparture = computed(() =>
@@ -371,7 +329,12 @@ function closeSortModal() {
 
 function confirmSortOptions() {
   applyDraftToApplied()
+  loadRooms()
   closeSortModal()
+}
+
+function handleSelectSortMode(next: SortMode) {
+  draftSortMode.value = next
 }
 
 function openPicker(mode: 'departure' | 'arrival', target: 'applied' | 'draft' = 'applied') {
@@ -510,10 +473,30 @@ function handleTimeConfirm(payload: { period: 'AM' | 'PM'; hour: string; minute:
   closeTimePicker()
 }
 
+function buildRoomQueryParams() {
+  const normalizedSort = SORT_PARAM_MAP[sortMode.value] ?? sortMode.value
+  const params: Record<string, string | number | undefined> = { sortBy: normalizedSort }
+
+  if (sortMode.value === 'nearest-departure') {
+    const anchor = desiredDeparture.value?.position ?? userLocation.value
+    if (anchor) {
+      params.refLat = anchor.lat
+      params.refLng = anchor.lng
+    }
+  } else if (sortMode.value === 'nearest-arrival') {
+    const anchor = desiredArrival.value?.position
+    if (anchor) {
+      params.refLat = anchor.lat
+      params.refLng = anchor.lng
+    }
+  }
+
+  return params
+}
+
 const viewRef = ref<HTMLElement | null>(null)
 const sheetHeight = ref<number>(MID_SHEET)
 const isDragging = ref(false)
-const selectedRoom = ref<RoomPreview | null>(null)
 const isCollapsed = computed(() => !isDragging.value && sheetHeight.value === COLLAPSED_SHEET)
 const sheetHeaderRef = ref<HTMLElement | null>(null)
 const sheetListRef = ref<HTMLElement | null>(null)
@@ -706,6 +689,7 @@ watch(selectedRoom, () => {
 
 onMounted(() => {
   updateAvailableHeight()
+  loadRooms()
   if (viewRef.value && 'ResizeObserver' in window) {
     resizeObserver = new ResizeObserver(() => {
       updateAvailableHeight()
@@ -850,6 +834,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 2px;
 }
+.sheet__status {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+.sheet__status--error {
+  color: #b91c1c;
+}
 .sheet__actions {
   margin-left: auto;
   display: flex;
@@ -890,7 +882,9 @@ onBeforeUnmount(() => {
   overflow-anchor: none;
   padding: clamp(6px, 1.6vw, 10px) clamp(18px, 4vw, 26px) clamp(18px, 3.6vw, 26px);
   scroll-padding-bottom: var(--tab-h);
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: clamp(12px, 2.6vw, 18px);
 }
 
@@ -905,6 +899,7 @@ onBeforeUnmount(() => {
 }
 
 .room-card {
+  width: min(420px, 100%);
   padding: clamp(16px, 3.4vw, 20px) clamp(16px, 3.4vw, 22px);
   border-radius: 20px;
   border: 1px solid rgba(234, 179, 8, 0.4);

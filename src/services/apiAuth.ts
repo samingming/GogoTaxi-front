@@ -23,12 +23,15 @@ function ensureConfigured() {
 function persistToken(data: unknown) {
   if (!isBrowser) return
   const payload = data as Record<string, unknown>
-  const token =
+  const tokenCandidate =
     (payload?.token as string | undefined) ??
     (payload?.accessToken as string | undefined) ??
-    (payload?.data as Record<string, unknown>)?.token ??
-    (payload?.data as Record<string, unknown>)?.accessToken
-  if (token) window.localStorage.setItem('auth_token', token)
+    ((payload?.data as Record<string, unknown>)?.token as string | undefined) ??
+    ((payload?.data as Record<string, unknown>)?.accessToken as string | undefined)
+
+  if (typeof tokenCandidate === 'string') {
+    window.localStorage.setItem('auth_token', tokenCandidate)
+  }
 }
 
 export async function signupWithApi(payload: SignupPayload) {

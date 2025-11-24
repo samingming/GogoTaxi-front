@@ -69,6 +69,26 @@ function loadInitialMemberships(): JoinedRoomEntry[] {
 const joinedRooms = ref<JoinedRoomEntry[]>(loadInitialMemberships())
 const activeRoomId = ref<string | null>(joinedRooms.value[0]?.roomId ?? null)
 
+function cloneEntry(entry: JoinedRoomEntry): JoinedRoomEntry {
+  return {
+    roomId: entry.roomId,
+    joinedAt: entry.joinedAt,
+    seatNumber: entry.seatNumber,
+    roomSnapshot: {
+      ...entry.roomSnapshot,
+      departure: {
+        ...entry.roomSnapshot.departure,
+        position: { ...entry.roomSnapshot.departure.position },
+      },
+      arrival: {
+        ...entry.roomSnapshot.arrival,
+        position: { ...entry.roomSnapshot.arrival.position },
+      },
+      tags: [...(entry.roomSnapshot.tags ?? [])],
+    },
+  }
+}
+
 function persistMemberships() {
   const bucket = readBucket()
   const key = currentUserKey()
@@ -133,6 +153,14 @@ function setActiveRoom(roomId: string) {
   }
 }
 
+function replaceRooms(entries: JoinedRoomEntry[]) {
+  if (!Array.isArray(entries)) return
+  joinedRooms.value = entries.map(cloneEntry)
+  if (!joinedRooms.value.some(entry => entry.roomId === activeRoomId.value)) {
+    activeRoomId.value = joinedRooms.value[0]?.roomId ?? null
+  }
+}
+
 function syncRoomSnapshot(roomId: string, nextSnapshot: RoomPreview | null | undefined) {
   if (!nextSnapshot) return
   const target = joinedRooms.value.find(entry => entry.roomId === roomId)
@@ -156,6 +184,7 @@ export function useRoomMembership() {
     leaveRoom,
     updateSeat,
     setActiveRoom,
+    replaceRooms,
     syncRoomSnapshot,
   }
 }

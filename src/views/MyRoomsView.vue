@@ -6,10 +6,32 @@
       <p class="my-rooms__desc">
         방찾기에서 합류한 방이 여기에 정리돼요. 좌석을 확정하거나 방 세부 정보로 바로 들어갈 수 있어요.
       </p>
-      <button type="button" class="hero-btn" @click="goFindRoom">다른 방 찾기</button>
+      <div class="hero-actions">
+        <button
+          type="button"
+          class="hero-btn hero-btn--refresh"
+          :disabled="isLoading"
+          @click="loadMyRooms"
+        >
+          {{ isLoading ? '불러오는 중...' : '목록 새로고침' }}
+        </button>
+        <button type="button" class="hero-btn" @click="goFindRoom">다른 방 찾기</button>
+      </div>
+      <p v-if="statusMessage" class="my-rooms__status">{{ statusMessage }}</p>
     </header>
 
-    <section v-if="roomCards.length" class="room-list">
+    <section v-if="isLoading" class="room-empty room-empty--status">
+      <p class="room-empty__title">내 방 목록을 불러오는 중이에요...</p>
+    </section>
+
+    <section v-else-if="errorMessage" class="room-empty room-empty--status">
+      <div class="room-empty__body">
+        <p class="room-empty__title">{{ errorMessage }}</p>
+        <button type="button" class="btn btn--primary" @click="loadMyRooms">다시 시도</button>
+      </div>
+    </section>
+
+    <section v-else-if="roomCards.length" class="room-list">
       <article v-for="entry in roomCards" :key="entry.roomId" class="room-card">
         <header class="room-card__header">
           <p class="room-card__status" :class="`room-card__status--${entry.statusKey}`">
@@ -38,8 +60,13 @@
           <button type="button" class="btn btn--primary" @click="enterRoom(entry)">
             {{ entry.seatNumber ? '방 입장' : '좌석 먼저 선택' }}
           </button>
-          <button type="button" class="btn btn--ghost" @click="dropRoom(entry.roomId)">
-            방 나가기
+          <button
+            type="button"
+            class="btn btn--ghost"
+            :disabled="leavingRoomId === entry.roomId"
+            @click="dropRoom(entry.roomId)"
+          >
+            {{ leavingRoomId === entry.roomId ? '방 나가는 중...' : '방 나가기' }}
           </button>
         </footer>
       </article>
@@ -52,20 +79,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { fetchMyRooms, leaveRoomFromApi } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
-import { getRoomById } from '@/data/mockRooms'
 import type { RoomPreview } from '@/types/rooms'
 
 const router = useRouter()
-const { joinedRooms, leaveRoom, setActiveRoom } = useRoomMembership()
+const { joinedRooms, leaveRoom, setActiveRoom, replaceRooms } = useRoomMembership()
+const isLoading = ref(false)
+const errorMessage = ref('')
+const lastUpdatedAt = ref<string | null>(null)
+const leavingRoomId = ref<string | null>(null)
 
 const STATUS_META: Record<NonNullable<RoomPreview['status']>, { label: string }> = {
   recruiting: { label: '모집 중' },
   dispatching: { label: '배차 중' },
-  success: { label: '배차 완료' },
-  failed: { label: '배차 실패' },
+  success: { label: '탑승 완료' },
+  failed: { label: '탑승 실패' },
 }
 
 const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -84,9 +115,20 @@ type RoomCard = {
   statusKey: string
 }
 
+const statusMessage = computed(() => {
+  if (isLoading.value || errorMessage.value) return ''
+  if (lastUpdatedAt.value) {
+    const date = new Date(lastUpdatedAt.value)
+    if (!Number.isNaN(date.getTime())) {
+      return `마지막 업데이트 · ${dateFormatter.format(date)}`
+    }
+  }
+  return ''
+})
+
 const roomCards = computed<RoomCard[]>(() =>
   joinedRooms.value.map(entry => {
-    const room = getRoomById(entry.roomId) ?? entry.roomSnapshot
+    const room = entry.roomSnapshot
     const statusKey = room.status ?? 'recruiting'
     const joinedAtLabel = formatJoinedAt(entry.joinedAt)
     return {
@@ -94,7 +136,7 @@ const roomCards = computed<RoomCard[]>(() =>
       room,
       seatNumber: entry.seatNumber,
       joinedAtLabel,
-      statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '진행 중',
+      statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
       statusKey,
     }
   }),
@@ -110,6 +152,35 @@ function goFindRoom() {
   router.push({ name: 'find-room' })
 }
 
+function resolveErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error) {
+    return err.message || fallback
+  }
+  if (typeof err === 'string' && err.trim()) {
+    return err
+  }
+  return fallback
+}
+
+async function loadMyRooms() {
+  if (isLoading.value) return
+  isLoading.value = true
+  errorMessage.value = ''
+  try {
+    const entries = await fetchMyRooms()
+    replaceRooms(entries)
+    lastUpdatedAt.value = new Date().toISOString()
+  } catch (error) {
+    errorMessage.value = resolveErrorMessage(error, '내 방 목록을 불러오지 못했어요.')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadMyRooms()
+})
+
 function enterRoom(entry: RoomCard) {
   setActiveRoom(entry.roomId)
   if (entry.seatNumber) {
@@ -119,8 +190,18 @@ function enterRoom(entry: RoomCard) {
   router.push({ name: 'seat-selection', query: { roomId: entry.roomId } })
 }
 
-function dropRoom(roomId: string) {
-  leaveRoom(roomId)
+async function dropRoom(roomId: string) {
+  if (leavingRoomId.value) return
+  leavingRoomId.value = roomId
+  try {
+    await leaveRoomFromApi(roomId)
+    leaveRoom(roomId)
+    await loadMyRooms()
+  } catch (error) {
+    errorMessage.value = resolveErrorMessage(error, '방 나가기에 실패했어요.')
+  } finally {
+    leavingRoomId.value = null
+  }
 }
 </script>
 
@@ -164,6 +245,18 @@ function dropRoom(roomId: string) {
   line-height: 1.6;
 }
 
+.my-rooms__status {
+  margin: 0;
+  font-size: 13px;
+  color: #a16207;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .hero-btn {
   justify-self: flex-start;
   padding: 10px 20px;
@@ -180,6 +273,16 @@ function dropRoom(roomId: string) {
 .hero-btn:hover {
   background: rgba(250, 204, 21, 0.32);
   color: #92400e;
+}
+
+.hero-btn--refresh {
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: transparent;
+}
+
+.hero-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .room-list {
@@ -301,6 +404,17 @@ function dropRoom(roomId: string) {
   justify-content: center;
   min-height: 0;
   text-align: center;
+}
+
+.room-empty--status {
+  flex-direction: column;
+  gap: 14px;
+}
+
+.room-empty__body {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
 }
 
 .room-empty__title {
