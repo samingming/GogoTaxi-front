@@ -12,6 +12,9 @@ const ROOM_DETAIL_PATH = import.meta.env.VITE_ROOM_DETAIL_PATH?.trim() || '/api/
 const LEAVE_TEMPLATE =
   import.meta.env.VITE_ROOM_LEAVE_PATH?.trim() || '/api/rooms/:id/leave'
 const LEAVE_METHOD = (import.meta.env.VITE_ROOM_LEAVE_METHOD || 'POST').toUpperCase()
+const JOIN_TEMPLATE =
+  import.meta.env.VITE_ROOM_JOIN_PATH?.trim() || '/api/rooms/:id/join'
+const JOIN_METHOD = (import.meta.env.VITE_ROOM_JOIN_METHOD || 'POST').toUpperCase()
 const GOGOTAXI_USER_KEY = 'gogotaxi_user'
 const LEGACY_AUTH_USER_KEY = 'auth_user'
 
@@ -153,12 +156,53 @@ export async function leaveRoomFromApi(roomId: string) {
   }
 }
 
+
+export async function joinRoomFromApi(roomId: string, seatNumber?: number | null) {
+  if (!roomId) {
+    throw new Error('�? ID가 ?�요?�요..')
+  }
+  const url = buildJoinUrl(roomId)
+  const payload: Record<string, unknown> = { roomId }
+  if (typeof seatNumber === 'number') {
+    payload.seatNumber = seatNumber
+  }
+  try {
+    if (JOIN_METHOD === 'DELETE') {
+      await apiClient.delete(url)
+      return
+    }
+    if (JOIN_METHOD === 'PATCH') {
+      await apiClient.patch(url, payload)
+      return
+    }
+    await apiClient.post(url, payload)
+  } catch (error) {
+    throw formatError(error)
+  }
+}
+
+
 function buildLeaveUrl(roomId: string) {
   if (LEAVE_TEMPLATE.includes(':id')) {
     return LEAVE_TEMPLATE.replace(':id', roomId)
   }
   const normalized = LEAVE_TEMPLATE.replace(/\/$/, '')
   return `${normalized}/${roomId}/leave`
+}
+
+
+function buildJoinUrl(roomId: string) {
+  if (JOIN_TEMPLATE.includes(':id')) {
+    return JOIN_TEMPLATE.replace(':id', roomId)
+  }
+  if (JOIN_TEMPLATE.includes('{id}')) {
+    return JOIN_TEMPLATE.replace('{id}', roomId)
+  }
+  const normalized = JOIN_TEMPLATE.replace(/\/$/, '')
+  if (normalized.endsWith('/join')) {
+    return normalized
+  }
+  return `${normalized}/${roomId}/join`
 }
 
 function buildRoomDetailUrl(roomId: string) {

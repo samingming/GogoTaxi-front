@@ -16,6 +16,8 @@ interface ImportMetaEnv {
   readonly VITE_ROOM_DETAIL_PATH?: string
   readonly VITE_ROOM_LEAVE_PATH?: string
   readonly VITE_ROOM_LEAVE_METHOD?: string
+  readonly VITE_ROOM_JOIN_PATH?: string
+  readonly VITE_ROOM_JOIN_METHOD?: string
 }
 
 interface ImportMeta {

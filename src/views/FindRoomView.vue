@@ -146,7 +146,9 @@
               <footer class="room-detail__tags">
                 <span v-for="tag in room.tags" :key="tag">#{{ tag }}</span>
               </footer>
-              <button type="button" class="room-detail__cta" @click.stop="joinRoom(room)">방 들어가기</button>
+              <button type="button" class="room-detail__cta" @click.stop="joinRoom(room)">
+                방 들어가기
+              </button>
             </section>
           </transition>
         </article>

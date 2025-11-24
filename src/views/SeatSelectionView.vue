@@ -65,8 +65,13 @@
         <button type="button" class="btn btn--ghost" @click="goBack">
           돌아가기
         </button>
-        <button type="button" class="btn btn--primary" :disabled="!selectedSeat" @click="confirmSeat">
-          좌석 확정하기
+        <button
+          type="button"
+          class="btn btn--primary"
+          :disabled="!selectedSeat || isJoining"
+          @click="confirmSeat"
+        >
+          {{ isJoining ? '참여 중...' : '좌석 확정하기' }}
         </button>
       </footer>
     </div>
@@ -77,6 +82,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomMembership } from '@/composables/useRoomMembership'
+import { joinRoomFromApi } from '@/api/rooms'
 import { getRoomById } from '@/data/mockRooms'
 
 interface SeatInfo {
@@ -97,6 +103,7 @@ const route = useRoute()
 const selectedSeat = ref<number | null>(null)
 const { joinedRooms, joinRoom: ensureRoom, updateSeat } = useRoomMembership()
 const originalOverflow = ref('')
+const isJoining = ref(false)
 
 function seatStyle(seat: SeatInfo) {
   return {
@@ -109,21 +116,40 @@ function selectSeat(seatNumber: number) {
   selectedSeat.value = seatNumber
 }
 
-function confirmSeat() {
-  if (!selectedSeat.value) return
-  const roomId = (route.query.roomId as string) || 'room-101'
-  if (!joinedRooms.value.some(entry => entry.roomId === roomId)) {
-    const snapshot = getRoomById(roomId)
-    if (snapshot) {
-      ensureRoom(snapshot)
-    }
+function resolveJoinError(err: unknown) {
+  if (err instanceof Error && err.message) {
+    return err.message
   }
-  updateSeat(roomId, selectedSeat.value)
-  router.push({
-    name: 'room-detail',
-    params: { id: roomId },
-    query: { seat: selectedSeat.value },
-  })
+  if (typeof err === 'string' && err.trim()) {
+    return err
+  }
+  return '방 참여에 실패했어요. 잠시 후 다시 시도해 주세요.'
+}
+
+async function confirmSeat() {
+  if (!selectedSeat.value || isJoining.value) return
+  const roomId = (route.query.roomId as string) || 'room-101'
+  const seatNumber = selectedSeat.value
+  isJoining.value = true
+  try {
+    await joinRoomFromApi(roomId, seatNumber)
+    if (!joinedRooms.value.some(entry => entry.roomId === roomId)) {
+      const snapshot = getRoomById(roomId)
+      if (snapshot) {
+        ensureRoom(snapshot)
+      }
+    }
+    updateSeat(roomId, seatNumber)
+    router.push({
+      name: 'room-detail',
+      params: { id: roomId },
+      query: { seat: seatNumber },
+    })
+  } catch (error) {
+    alert(resolveJoinError(error))
+  } finally {
+    isJoining.value = false
+  }
 }
 
 function goBack() {
