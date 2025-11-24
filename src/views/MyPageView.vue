@@ -31,10 +31,6 @@
           <button type="button" class="wallet-link" @click="chargeWallet">
             {{ labels.charge }}
           </button>
-          <span class="wallet-divider" aria-hidden="true"></span>
-          <button type="button" class="wallet-link" @click="viewWalletHistory">
-            {{ labels.historyButton }}
-          </button>
         </div>
       </section>
 
@@ -67,6 +63,7 @@ import profileImage from "@/assets/user.svg";
 import maleBadge from "@/assets/male.svg";
 import femaleBadge from "@/assets/female.svg";
 import { refreshUserBalance, useUserStore } from "@/stores/userStore";
+import { fetchMe } from "@/api/auth";
 
 const router = useRouter();
 
@@ -80,7 +77,6 @@ const labels = {
   kokoPayBrand: "pay",
   currencyUnit: "\uC6D0",
   charge: "\uCDA9\uC804",
-  historyButton: "\uB0B4\uC5ED",
   noNickname: "\uB2C9\uB124\uC784 \uBBF8\uB4F1\uB85D",
   noPhone: "\uC5F0\uB77D\uCC98 \uBBF8\uB4F1\uB85D",
   openSettings: "\uD504\uB85C\uD544 \uC218\uC815 \uD398\uC774\uC9C0 \uC774\uB3D9",
@@ -90,19 +86,7 @@ const labels = {
 
 type GenderValue = "male" | "female" | "M" | "F" | "\uB0A8\uC131" | "\uC5EC\uC131" | "";
 
-const user = ref({
-  nickname: "\uAE40\uC608\uC740",
-  phone: "010-1234-5678",
-  gender: "\uC5EC\uC131" as GenderValue,
-});
-
-onMounted(() => {
-  if (!user.isBalanceLoaded) {
-    refreshUserBalance().catch(() => {
-      // silently fail; consider showing toast in future
-    });
-  }
-});
+const user = useUserStore();
 
 const displayNickname = computed(() => {
   const nickname = user.nickname?.trim();
@@ -118,7 +102,7 @@ const formatPhone = (value: string) => {
 };
 
 const displayPhone = computed(() => {
-  const phone = user.value.phone?.trim();
+  const phone = user.phone?.trim();
   const formatted = phone ? formatPhone(phone) : "";
   return formatted.length ? formatted : labels.noPhone;
 });
@@ -161,24 +145,25 @@ const openProfileSettings = () => {
 const loadProfile = async () => {
   try {
     const me = await fetchMe();
-    user.value.nickname = me.name || me.loginId || "";
-    user.value.phone = me.phone || "";
-    user.value.gender = (me.gender as GenderValue) || "";
+    user.nickname = me.name || me.loginId || "";
+    user.phone = me.phone || "";
+    user.gender = (me.gender as GenderValue) || "";
   } catch (err) {
     console.error("Failed to load profile", err);
   }
 };
 
 onMounted(() => {
+  if (!user.isBalanceLoaded) {
+    refreshUserBalance().catch(() => {
+      // quietly ignore; could show toast later
+    });
+  }
   loadProfile();
 });
 
 const chargeWallet = () => {
   router.push("/mypage/charge");
-};
-
-const viewWalletHistory = () => {
-  router.push("/mypage/wallet/history");
 };
 </script>
 

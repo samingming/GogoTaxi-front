@@ -54,7 +54,7 @@ import { refreshUserBalance } from "@/stores/userStore";
 import { topupWallet } from "@/services/walletService";
 
 const router = useRouter();
-const amountInput = ref("12500");
+const amountInput = ref("10000");
 const isSubmitting = ref(false);
 const errorMessage = ref("");
 
