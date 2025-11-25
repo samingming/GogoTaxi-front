@@ -5,7 +5,6 @@ import UserLoginView from '@/views/UserLoginView.vue'
 import UserRegisterView from '@/views/UserRegisterView.vue'
 import FindAccountView from '@/views/FindAccountView.vue'
 
-
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', name: 'login', component: UserLoginView, meta: { hideBottomNav: true } },
