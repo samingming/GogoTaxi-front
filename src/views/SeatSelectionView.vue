@@ -92,10 +92,10 @@ interface SeatInfo {
 }
 
 const seats: SeatInfo[] = [
-  { number: 2, x: 62, y: 28 },
-  { number: 3, x: 28, y: 68 },
-  { number: 4, x: 50, y: 68 },
-  { number: 5, x: 72, y: 68 },
+  { number: 1, x: 62, y: 28 },
+  { number: 2, x: 28, y: 68 },
+  { number: 3, x: 50, y: 68 },
+  { number: 4, x: 72, y: 68 },
 ]
 
 const router = useRouter()
