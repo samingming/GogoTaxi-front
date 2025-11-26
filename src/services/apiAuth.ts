@@ -4,11 +4,11 @@ export type SignupPayload = {
   loginId: string
   password: string
   name: string
-  gender: 'M' | 'F'
-  phone: string
-  birthDate: string
-  smsConsent: boolean
-  termsConsent: boolean
+  gender?: 'M' | 'F'
+  phone?: string
+  birthDate?: string
+  smsConsent?: boolean
+  termsConsent?: boolean
 }
 
 export type LoginPayload = {
@@ -44,13 +44,35 @@ function persistToken(data: unknown) {
 
 export async function signupWithApi(payload: SignupPayload) {
   ensureConfigured()
-  const { data } = await http.post('/auth/signup', payload)
+  // Backend expects loginId/password/name/etc.
+  const body = {
+    loginId: payload.loginId,
+    password: payload.password,
+    name: payload.name || payload.loginId,
+    gender: payload.gender,
+    phone: payload.phone,
+    birthDate: payload.birthDate,
+    smsConsent: payload.smsConsent,
+    termsConsent: payload.termsConsent,
+  }
+  const { data } = await http.post('/api/auth/signup', body)
   return data
 }
 
 export async function loginWithApi(payload: LoginPayload) {
   ensureConfigured()
-  const { data } = await http.post('/auth/login', payload)
+  // Backend expects loginId/password.
+  const body = { loginId: payload.loginId, password: payload.password }
+  // Backend routes are namespaced under /api, so include the prefix to avoid 404.
+  const { data } = await http.post('/api/auth/login', body)
   persistToken(data)
+  return data
+}
+
+export async function checkLoginIdAvailability(loginId: string) {
+  ensureConfigured()
+  const { data } = await http.get<{ available: boolean; loginId: string }>('/api/auth/check-id', {
+    params: { loginId },
+  })
   return data
 }
