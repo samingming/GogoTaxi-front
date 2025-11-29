@@ -20,7 +20,16 @@ export type RoomPreview = {
   tags: string[]
   eta?: string
   fare?: number
-  status?: 'recruiting' | 'dispatching' | 'success' | 'failed'
+  status?:
+    | 'recruiting'
+    | 'requesting'
+    | 'matching'
+    | 'dispatching'
+    | 'driver_assigned'
+    | 'arriving'
+    | 'aboard'
+    | 'success'
+    | 'failed'
   taxi?: {
     carNumber?: string
     driverName?: string

@@ -43,7 +43,7 @@ const hasSelection = computed(() => Boolean(props.selectedRoom))
 function setError(message: string, detail?: unknown) {
   errorMessage.value = message
   ready.value = false
-  // eslint-disable-next-line no-console
+   
   console.error('[RoomMap]', message, detail)
 }
 

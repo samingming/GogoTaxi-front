@@ -26,6 +26,9 @@
       <p v-else-if="detailError" class="room-live__status room-live__status--error">
         {{ detailError }}
       </p>
+      <p v-else-if="realtimeError" class="room-live__status room-live__status--error">
+        {{ realtimeError }}
+      </p>
     </header>
 
       <div class="room-live__grid">
@@ -57,6 +60,15 @@
             <button type="button" class="link-btn" @click="toggleRouteMap">
               {{ showRouteMap ? '지도 닫기' : '경로 보기' }}
             </button>
+            <button
+              v-if="uberDeepLink && isHost"
+              type="button"
+              class="link-btn"
+              @click="openUber"
+            >
+              Uber 딥링크 열기 (방장)
+            </button>
+            <span v-else-if="!isHost" class="link-hint">호출은 방장만 가능합니다.</span>
             <button type="button" class="link-btn" @click="changeSeat">좌석 다시 고르기</button>
           </div>
           <transition name="route-map">
@@ -102,6 +114,51 @@
               배차 다시 시도하기
             </button>
           </div>
+          <p class="status-share">
+            모든 멤버가 동일한 가짜 배차 UI를 공유해요. 방장만 호출·상태 전환을 할 수 있고, 결과는 소켓으로 실시간 동기화돼요.
+          </p>
+          <div class="host-actions">
+            <div class="host-actions__meta">
+              <p class="host-actions__label">방장</p>
+              <p class="host-actions__name">{{ hostParticipant?.name ?? '확인 중' }}</p>
+              <small>방을 처음 만든 사람이 방장이며 최대 4명까지 입장 가능</small>
+            </div>
+            <div class="host-actions__buttons">
+              <button
+                v-if="uberDeepLink && isHost"
+                type="button"
+                class="btn btn--primary"
+                @click="openUber"
+              >
+                우버 호출하기 (방장 전용)
+              </button>
+              <button
+                v-else
+                type="button"
+                class="btn btn--ghost"
+                disabled
+                title="방장만 호출할 수 있어요"
+              >
+                우버 호출은 방장만 가능해요
+              </button>
+              <button type="button" class="btn" @click="retryDispatch">배차 상태 초기화</button>
+            </div>
+          </div>
+          <ol class="dispatch-timeline" aria-label="우버형 배차 흐름">
+            <li
+              v-for="step in dispatchTimeline"
+              :key="step.key"
+              class="dispatch-timeline__item"
+              :class="`dispatch-timeline__item--${step.state}`"
+            >
+              <div class="dispatch-timeline__badge">{{ step.title }}</div>
+              <div class="dispatch-timeline__body">
+                <p class="dispatch-timeline__title">{{ step.title }}</p>
+                <p class="dispatch-timeline__desc">{{ step.description }}</p>
+                <small v-if="step.hint" class="dispatch-timeline__hint">{{ step.hint }}</small>
+              </div>
+            </li>
+          </ol>
           <div v-if="showTaxiInfo" class="taxi-card">
             <p class="taxi-card__title">배차된 택시</p>
             <p class="taxi-card__plate">{{ room.taxi?.carModel }} · {{ room.taxi?.carNumber }}</p>
@@ -136,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RoomPreview } from '@/types/rooms'
 import RouteMapBox from '@/components/RouteMapBox.vue'
@@ -147,6 +204,8 @@ import {
   type RoomParticipant,
 } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
+import { connectRoomChannel, type RoomRealtimePatch } from '@/services/roomSocket'
+import { getCurrentUser } from '@/services/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -178,13 +237,32 @@ const seatNumber = computed(() => membership.value?.seatNumber ?? seatFromQuery.
 const participantsRaw = ref<RoomParticipant[]>([])
 const detailError = ref('')
 const detailLoading = ref(false)
+const realtimeError = ref('')
+const disconnectRealtime = ref<null | (() => void)>(null)
+
+const currentUserId = computed(() => getCurrentUser()?.id ?? '')
+const hostParticipant = computed(() => {
+  const labeledHost = participantsRaw.value.find(mate =>
+    mate.role?.toLowerCase().includes('host'),
+  )
+  if (labeledHost) return labeledHost
+
+  const sorted = [...participantsRaw.value].sort((a, b) => {
+    const aTime = a.joinedAt ? new Date(a.joinedAt).getTime() : Number.POSITIVE_INFINITY
+    const bTime = b.joinedAt ? new Date(b.joinedAt).getTime() : Number.POSITIVE_INFINITY
+    return aTime - bTime
+  })
+  return sorted[0] ?? null
+})
+const hostId = computed(() => hostParticipant.value?.id ?? null)
+const isHost = computed(() => !hostId.value || hostId.value === currentUserId.value)
 
 const participants = computed(() => {
   if (participantsRaw.value.length) {
     return participantsRaw.value.map((mate, index) => ({
       id: mate.id || `participant-${index}`,
       name: mate.email ?? mate.name ?? `참여자 ${index + 1}`,
-      role: mate.role,
+      role: mate.id === hostId.value ? '방장' : mate.role,
       seat: mate.seatNumber ?? null,
       initials: toInitials(mate.email ?? mate.name ?? mate.id ?? `${index + 1}`, `${index + 1}`),
     }))
@@ -210,6 +288,8 @@ const perPersonFare = computed(() => {
   return fare ? Math.round(fare / participantCount.value) : undefined
 })
 
+const uberDeepLink = computed(() => buildUberDeepLink(room.value, import.meta.env.VITE_UBER_CLIENT_ID))
+
 const showRouteMap = ref(false)
 const isLeavingRoom = ref(false)
 
@@ -218,6 +298,18 @@ watch(
   id => {
     if (id) {
       loadRoomDetail(id)
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => roomId.value,
+  id => {
+    if (id) {
+      connectRealtime(id)
+    } else {
+      stopRealtime()
     }
   },
   { immediate: true },
@@ -265,6 +357,96 @@ async function leaveRoom() {
   }
 }
 
+async function connectRealtime(id: string) {
+  stopRealtime()
+  realtimeError.value = ''
+  try {
+    const disconnect = await connectRoomChannel(
+      id,
+      {
+        onRoomUpdated: applyRoomPatch,
+        onParticipantsUpdated: applyParticipantPatch,
+        onError: message => (realtimeError.value = message),
+      },
+      { token: resolveAuthToken() },
+    )
+    disconnectRealtime.value = disconnect
+  } catch (error) {
+    realtimeError.value = resolveErrorMessage(error, '실시간 연결에 실패했어요.')
+  }
+}
+
+function stopRealtime() {
+  if (disconnectRealtime.value) {
+    disconnectRealtime.value()
+    disconnectRealtime.value = null
+  }
+}
+
+function applyRoomPatch(patch: RoomRealtimePatch) {
+  if (!roomId.value) return
+  const baseRoom = roomDetail.value ?? membership.value?.roomSnapshot ?? null
+  if (!baseRoom) return
+
+  const nextRoom: RoomPreview = {
+    ...baseRoom,
+    ...(patch.title ? { title: patch.title } : {}),
+    ...(patch.eta !== undefined ? { eta: patch.eta } : {}),
+    ...(patch.fare !== undefined ? { fare: patch.fare } : {}),
+    ...(patch.status ? { status: patch.status } : {}),
+    ...(patch.taxi ? { taxi: { ...baseRoom.taxi, ...patch.taxi } } : {}),
+    departure: patch.departure
+      ? {
+          ...baseRoom.departure,
+          ...patch.departure,
+          position: patch.departure.position ?? baseRoom.departure.position,
+        }
+      : baseRoom.departure,
+    arrival: patch.arrival
+      ? {
+          ...baseRoom.arrival,
+          ...patch.arrival,
+          position: patch.arrival.position ?? baseRoom.arrival.position,
+        }
+      : baseRoom.arrival,
+  }
+
+  roomDetail.value = nextRoom
+  syncRoomSnapshot(roomId.value, nextRoom)
+}
+
+function applyParticipantPatch(next: RoomParticipant[]) {
+  participantsRaw.value = next
+}
+
+function openUber() {
+  if (!isHost.value) {
+    realtimeError.value = '방장만 호출을 진행할 수 있어요.'
+    return
+  }
+  if (uberDeepLink.value) {
+    window.open(uberDeepLink.value, '_blank')
+    updateSharedStatus('requesting')
+  }
+}
+
+function retryDispatch() {
+  if (!isHost.value) {
+    realtimeError.value = '방장만 배차를 다시 시도할 수 있어요.'
+    return
+  }
+  updateSharedStatus('requesting')
+}
+
+function updateSharedStatus(status: DispatchStepKey) {
+  if (!roomId.value) return
+  const baseRoom = roomDetail.value ?? membership.value?.roomSnapshot
+  if (!baseRoom) return
+  const nextRoom: RoomPreview = { ...baseRoom, status }
+  roomDetail.value = nextRoom
+  syncRoomSnapshot(roomId.value, nextRoom)
+}
+
 function toInitials(source?: string, fallback = 'ME') {
   if (!source) return fallback
   const trimmed = source.trim()
@@ -291,32 +473,122 @@ function resolveErrorMessage(err: unknown, fallback: string) {
   return fallback
 }
 
-function retryDispatch() {
-  alert('배차를 다시 시도합니다. 조금만 기다려 주세요!')
-}
-
 function toggleRouteMap() {
   showRouteMap.value = !showRouteMap.value
 }
 
-type DispatchStatus = NonNullable<RoomPreview['status']>
+function buildUberDeepLink(room: RoomPreview | null | undefined, clientId?: string) {
+  if (!room?.departure?.position || !room?.arrival?.position) return ''
+  const params = new URLSearchParams({
+    action: 'setPickup',
+    'pickup[latitude]': String(room.departure.position.lat),
+    'pickup[longitude]': String(room.departure.position.lng),
+    'dropoff[latitude]': String(room.arrival.position.lat),
+    'dropoff[longitude]': String(room.arrival.position.lng),
+  })
 
-const STATUS_LABELS: Record<DispatchStatus, string> = {
+  if (room.departure.label) params.set('pickup[nickname]', room.departure.label)
+  if (room.arrival.label) params.set('dropoff[nickname]', room.arrival.label)
+  if (clientId) params.set('client_id', clientId)
+
+  return `https://m.uber.com/ul/?${params.toString()}`
+}
+
+function resolveAuthToken() {
+  if (typeof window === 'undefined') return ''
+  return (
+    window.localStorage.getItem('gogotaxi_access_token') ||
+    window.localStorage.getItem('gogotaxi_token') ||
+    window.localStorage.getItem('auth_token') ||
+    ''
+  )
+}
+
+type DispatchStepKey =
+  | 'recruiting'
+  | 'requesting'
+  | 'matching'
+  | 'driver_assigned'
+  | 'arriving'
+  | 'aboard'
+  | 'success'
+  | 'failed'
+
+type DispatchStep = {
+  key: DispatchStepKey
+  title: string
+  description: string
+  hint?: string
+}
+
+type DispatchStepView = DispatchStep & { state: 'done' | 'active' | 'upcoming' }
+
+const DISPATCH_STEPS: DispatchStep[] = [
+  {
+    key: 'recruiting',
+    title: '인원 모집',
+    description: '최대 4명까지 방에 입장하여 자리를 확정해요.',
+    hint: '방을 만든 첫 번째 사용자가 방장이 되며 우버 호출 권한을 가져요.',
+  },
+  {
+    key: 'requesting',
+    title: '호출 요청 준비',
+    description: '방장이 목적지를 확인하고 우버 호출을 눌러요.',
+    hint: '딥링크 호출과 동시에 상태가 공유되도록 서버에 기록돼요.',
+  },
+  {
+    key: 'matching',
+    title: '배차/매칭 중',
+    description: '소켓으로 배차 진행 상황을 모든 멤버에게 실시간 공유해요.',
+  },
+  {
+    key: 'driver_assigned',
+    title: '기사 배정 완료',
+    description: '차량, 기사 정보를 공유 UI에 표시해요.',
+  },
+  {
+    key: 'arriving',
+    title: '픽업지로 이동 중',
+    description: '기사의 도착 예상 시간을 함께 확인해요.',
+  },
+  {
+    key: 'aboard',
+    title: '탑승 완료',
+    description: '모두 탑승 시 배차 흐름을 계속 업데이트해요.',
+  },
+  {
+    key: 'success',
+    title: '운행 완료',
+    description: '결제 및 정산 단계를 마무리해요.',
+  },
+]
+
+const STATUS_LABELS: Record<DispatchStepKey, string> = {
   recruiting: '모집 중',
-  dispatching: '배차 중',
+  requesting: '호출 준비',
+  matching: '배차 중',
+  driver_assigned: '기사 배정',
+  arriving: '픽업 이동 중',
+  aboard: '탑승 완료',
   success: '배차 성공',
   failed: '배차 실패',
 }
 
-const STATUS_DESCRIPTIONS: Record<DispatchStatus, string> = {
+const STATUS_DESCRIPTIONS: Record<DispatchStepKey, string> = {
   recruiting: '인원을 모집 중입니다.',
-  dispatching: '택시 배차를 진행하고 있어요.',
-  success: '배차가 완료되어 출발을 기다리고 있어요.',
+  requesting: '방장이 목적지를 확인하고 호출을 준비하고 있어요.',
+  matching: '택시 배차를 진행하고 있어요.',
+  driver_assigned: '기사 정보가 확인되었어요.',
+  arriving: '기사님이 픽업 지점으로 이동 중이에요.',
+  aboard: '모두 탑승했어요. 도착까지 안전 운행!',
+  success: '운행이 완료되었어요.',
   failed: '배차가 실패되어 다시 시도해야 해요.',
 }
 
+const statusKey = computed<DispatchStepKey>(() => normalizeStatus(room.value?.status))
+
 const statusInfo = computed(() => {
-  const currentStatus = (room.value?.status as DispatchStatus | undefined) ?? 'recruiting'
+  const currentStatus = statusKey.value
   return {
     key: currentStatus,
     label: STATUS_LABELS[currentStatus],
@@ -324,11 +596,55 @@ const statusInfo = computed(() => {
   }
 })
 
-const showTaxiInfo = computed(() => room.value?.status === 'success' && room.value?.taxi)
+const dispatchTimeline = computed<DispatchStepView[]>(() => {
+  const current = statusKey.value
+  const currentIndex = DISPATCH_STEPS.findIndex(step => step.key === current)
+  return DISPATCH_STEPS.map((step, index) => {
+    const state =
+      current === 'failed'
+        ? index < (currentIndex === -1 ? 2 : currentIndex)
+          ? 'done'
+          : 'upcoming'
+        : index < currentIndex
+          ? 'done'
+          : index === currentIndex
+            ? 'active'
+            : 'upcoming'
+    return { ...step, state }
+  })
+})
+
+const showTaxiInfo = computed(() =>
+  ['driver_assigned', 'arriving', 'aboard', 'success'].includes(statusKey.value) &&
+  room.value?.taxi,
+)
 
 function formatFare(amount?: number) {
   if (amount == null) return '확정 전'
   return `₩ ${amount.toLocaleString('ko-KR')}`
+}
+
+function normalizeStatus(status?: RoomPreview['status']): DispatchStepKey {
+  switch (status) {
+    case 'requesting':
+      return 'requesting'
+    case 'matching':
+      return 'matching'
+    case 'dispatching':
+      return 'matching'
+    case 'driver_assigned':
+      return 'driver_assigned'
+    case 'arriving':
+      return 'arriving'
+    case 'aboard':
+      return 'aboard'
+    case 'success':
+      return 'success'
+    case 'failed':
+      return 'failed'
+    default:
+      return 'recruiting'
+  }
 }
 
 watch(
@@ -360,6 +676,10 @@ watch(
   },
   { immediate: true },
 )
+
+onBeforeUnmount(() => {
+  stopRealtime()
+})
 </script>
 
 <style scoped>
@@ -699,6 +1019,116 @@ watch(
 
 .btn:hover {
   transform: translateY(-1px);
+}
+
+.status-share {
+  margin: 12px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.host-actions {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(255, 237, 213, 0.4), rgba(255, 255, 255, 0.8));
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: center;
+}
+
+.host-actions__meta p {
+  margin: 0;
+}
+
+.host-actions__label {
+  font-size: 13px;
+  color: #9a3412;
+  letter-spacing: 0.02em;
+}
+
+.host-actions__name {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.host-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.host-actions .btn {
+  min-width: 160px;
+}
+
+.dispatch-timeline {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dispatch-timeline__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fff;
+}
+
+.dispatch-timeline__item--done {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.06), #fff);
+}
+
+.dispatch-timeline__item--active {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+}
+
+.dispatch-timeline__badge {
+  min-width: 120px;
+  padding: 6px 10px;
+  background: rgba(17, 24, 39, 0.05);
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.dispatch-timeline__item--done .dispatch-timeline__badge {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.dispatch-timeline__item--active .dispatch-timeline__badge {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.dispatch-timeline__title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.dispatch-timeline__desc {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
+.dispatch-timeline__hint {
+  display: inline-block;
+  margin-top: 4px;
+  color: #2563eb;
+}
+
+.link-hint {
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 @media (max-width: 720px) {
