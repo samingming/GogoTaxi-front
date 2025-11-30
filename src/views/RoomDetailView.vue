@@ -29,6 +29,9 @@
       <p v-else-if="realtimeError" class="room-live__status room-live__status--error">
         {{ realtimeError }}
       </p>
+      <p v-else-if="rideError" class="room-live__status room-live__status--error">
+        {{ rideError }}
+      </p>
     </header>
 
       <div class="room-live__grid">
@@ -66,7 +69,7 @@
               class="link-btn"
               @click="openUber"
             >
-              Uber 딥링크 열기 (방장)
+              Uber 열기
             </button>
             <span v-else-if="!isHost" class="link-hint">호출은 방장만 가능합니다.</span>
             <button type="button" class="link-btn" @click="changeSeat">좌석 다시 고르기</button>
@@ -128,9 +131,10 @@
                 v-if="uberDeepLink && isHost"
                 type="button"
                 class="btn btn--primary"
+                :disabled="rideRequesting"
                 @click="openUber"
               >
-                우버 호출하기 (방장 전용)
+                {{ rideRequesting ? '호출 요청 중...' : '우버 호출하기 (방장 전용)' }}
               </button>
               <button
                 v-else
@@ -141,7 +145,9 @@
               >
                 우버 호출은 방장만 가능해요
               </button>
-              <button type="button" class="btn" @click="retryDispatch">배차 상태 초기화</button>
+              <button type="button" class="btn" :disabled="rideRequesting" @click="retryDispatch">
+                배차 상태 초기화
+              </button>
             </div>
           </div>
           <ol class="dispatch-timeline" aria-label="우버형 배차 흐름">
@@ -161,8 +167,8 @@
           </ol>
           <div v-if="showTaxiInfo" class="taxi-card">
             <p class="taxi-card__title">배차된 택시</p>
-            <p class="taxi-card__plate">{{ room.taxi?.carModel }} · {{ room.taxi?.carNumber }}</p>
-            <p class="taxi-card__driver">{{ room.taxi?.driverName }}</p>
+            <p class="taxi-card__plate">{{ currentTaxi?.carModel }} · {{ currentTaxi?.carNumber }}</p>
+            <p class="taxi-card__driver">{{ currentTaxi?.driverName }}</p>
           </div>
           <p v-else-if="room.status === 'failed'" class="status-hint">
             배차가 실패했어요. 인원 모집을 조정하거나 다시 시도해 주세요.
@@ -206,6 +212,13 @@ import {
 import { useRoomMembership } from '@/composables/useRoomMembership'
 import { connectRoomChannel, type RoomRealtimePatch } from '@/services/roomSocket'
 import { getCurrentUser } from '@/services/auth'
+import {
+  fetchRideState,
+  requestRide,
+  updateRideStage,
+  type RideStage,
+  type RideState,
+} from '@/api/ride'
 
 const route = useRoute()
 const router = useRouter()
@@ -239,6 +252,11 @@ const detailError = ref('')
 const detailLoading = ref(false)
 const realtimeError = ref('')
 const disconnectRealtime = ref<null | (() => void)>(null)
+const rideState = ref<RideState | null>(null)
+const rideError = ref('')
+const rideRequesting = ref(false)
+const ridePolling = ref<ReturnType<typeof setInterval> | null>(null)
+const ridePollingBusy = ref(false)
 
 const currentUserId = computed(() => getCurrentUser()?.id ?? '')
 const hostParticipant = computed(() => {
@@ -246,6 +264,10 @@ const hostParticipant = computed(() => {
     mate.role?.toLowerCase().includes('host'),
   )
   if (labeledHost) return labeledHost
+
+  if (participantsRaw.value.length === 1) {
+    return participantsRaw.value[0]
+  }
 
   const sorted = [...participantsRaw.value].sort((a, b) => {
     const aTime = a.joinedAt ? new Date(a.joinedAt).getTime() : Number.POSITIVE_INFINITY
@@ -255,7 +277,11 @@ const hostParticipant = computed(() => {
   return sorted[0] ?? null
 })
 const hostId = computed(() => hostParticipant.value?.id ?? null)
-const isHost = computed(() => !hostId.value || hostId.value === currentUserId.value)
+const isHost = computed(() => {
+  if (!participantsRaw.value.length) return true
+  if (participantsRaw.value.length === 1) return true
+  return !hostId.value || hostId.value === currentUserId.value
+})
 
 const participants = computed(() => {
   if (participantsRaw.value.length) {
@@ -310,6 +336,18 @@ watch(
       connectRealtime(id)
     } else {
       stopRealtime()
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => roomId.value,
+  id => {
+    if (id) {
+      startRidePolling(id)
+    } else {
+      stopRidePolling()
     }
   },
   { immediate: true },
@@ -383,6 +421,48 @@ function stopRealtime() {
   }
 }
 
+function startRidePolling(id: string) {
+  stopRidePolling()
+  rideError.value = ''
+  if (!id) return
+  pollRideState(id)
+  ridePolling.value = setInterval(() => {
+    void pollRideState(id, true)
+  }, 3000)
+}
+
+function stopRidePolling() {
+  if (ridePolling.value) {
+    clearInterval(ridePolling.value)
+    ridePolling.value = null
+  }
+}
+
+async function pollRideState(id: string, silent = false) {
+  if (!id || ridePollingBusy.value) return
+  ridePollingBusy.value = true
+  try {
+    const nextState = await fetchRideState(id)
+    applyRideState(nextState)
+    rideError.value = ''
+  } catch (error) {
+    if (!silent) {
+      rideError.value = resolveErrorMessage(error, '배차 상태를 불러오지 못했어요.')
+    }
+  } finally {
+    ridePollingBusy.value = false
+  }
+}
+
+function applyRideState(next: RideState | null) {
+  if (!next) return
+  rideState.value = next
+}
+
+function applyRideStage(stage: RideStage, patch: Partial<RideState> = {}) {
+  rideState.value = { ...(rideState.value ?? { stage }), ...patch, stage }
+}
+
 function applyRoomPatch(patch: RoomRealtimePatch) {
   if (!roomId.value) return
   const baseRoom = roomDetail.value ?? membership.value?.roomSnapshot ?? null
@@ -419,32 +499,68 @@ function applyParticipantPatch(next: RoomParticipant[]) {
   participantsRaw.value = next
 }
 
-function openUber() {
+async function openUber() {
   if (!isHost.value) {
     realtimeError.value = '방장만 호출을 진행할 수 있어요.'
     return
   }
-  if (uberDeepLink.value) {
-    window.open(uberDeepLink.value, '_blank')
-    updateSharedStatus('requesting')
+  if (!roomId.value || !room.value) {
+    realtimeError.value = '방 정보를 찾지 못했어요. 잠시 후 다시 시도해 주세요.'
+    return
+  }
+
+  try {
+    rideRequesting.value = true
+    const response = await requestRide(roomId.value, {
+      pickup: room.value.departure,
+      dropoff: room.value.arrival,
+      passengerCount: participantCount.value,
+    })
+
+    applyRideStage(response.stage ?? 'pending', {
+      requestId: response.requestId ?? rideState.value?.requestId,
+    })
+
+    const deepLinkUrl =
+      response.appUrl ||
+      response.deeplink ||
+      response.deepLink ||
+      response.url ||
+      uberDeepLink.value
+    if (deepLinkUrl) {
+      window.open(deepLinkUrl, '_blank')
+    }
+
+    await pollRideState(roomId.value, true)
+  } catch (error) {
+    const fallbackLink = uberDeepLink.value
+    if (fallbackLink) {
+      window.open(fallbackLink, '_blank')
+      realtimeError.value = '배차 요청이 실패해서 우버 링크만 열었어요.'
+    } else {
+      realtimeError.value = resolveErrorMessage(error, '호출 요청을 처리하지 못했어요.')
+    }
+  } finally {
+    rideRequesting.value = false
   }
 }
 
-function retryDispatch() {
+async function retryDispatch() {
   if (!isHost.value) {
     realtimeError.value = '방장만 배차를 다시 시도할 수 있어요.'
     return
   }
-  updateSharedStatus('requesting')
+  await updateRideProgress('dispatching')
 }
 
-function updateSharedStatus(status: DispatchStepKey) {
+async function updateRideProgress(stage: RideStage) {
   if (!roomId.value) return
-  const baseRoom = roomDetail.value ?? membership.value?.roomSnapshot
-  if (!baseRoom) return
-  const nextRoom: RoomPreview = { ...baseRoom, status }
-  roomDetail.value = nextRoom
-  syncRoomSnapshot(roomId.value, nextRoom)
+  try {
+    const next = await updateRideStage(roomId.value, { ...(rideState.value ?? { stage }), stage })
+    applyRideState(next)
+  } catch (error) {
+    realtimeError.value = resolveErrorMessage(error, '배차 상태를 업데이트하지 못했어요.')
+  }
 }
 
 function toInitials(source?: string, fallback = 'ME') {
@@ -585,7 +701,9 @@ const STATUS_DESCRIPTIONS: Record<DispatchStepKey, string> = {
   failed: '배차가 실패되어 다시 시도해야 해요.',
 }
 
-const statusKey = computed<DispatchStepKey>(() => normalizeStatus(room.value?.status))
+const statusKey = computed<DispatchStepKey>(() =>
+  rideStageToDispatchStep(rideState.value?.stage) ?? normalizeStatus(room.value?.status),
+)
 
 const statusInfo = computed(() => {
   const currentStatus = statusKey.value
@@ -614,9 +732,19 @@ const dispatchTimeline = computed<DispatchStepView[]>(() => {
   })
 })
 
+const currentTaxi = computed(() => {
+  if (rideState.value) {
+    const { driverName, carModel, carNumber } = rideState.value
+    if (driverName || carModel || carNumber) {
+      return { driverName, carModel, carNumber }
+    }
+  }
+  return room.value?.taxi
+})
+
 const showTaxiInfo = computed(() =>
   ['driver_assigned', 'arriving', 'aboard', 'success'].includes(statusKey.value) &&
-  room.value?.taxi,
+  currentTaxi.value,
 )
 
 function formatFare(amount?: number) {
@@ -644,6 +772,27 @@ function normalizeStatus(status?: RoomPreview['status']): DispatchStepKey {
       return 'failed'
     default:
       return 'recruiting'
+  }
+}
+
+function rideStageToDispatchStep(stage?: RideStage | null): DispatchStepKey | null {
+  switch (stage) {
+    case 'pending':
+      return 'requesting'
+    case 'dispatching':
+      return 'matching'
+    case 'accepted':
+      return 'driver_assigned'
+    case 'approaching':
+      return 'arriving'
+    case 'onboard':
+      return 'aboard'
+    case 'completed':
+      return 'success'
+    case 'cancelled':
+      return 'failed'
+    default:
+      return null
   }
 }
 
@@ -679,6 +828,7 @@ watch(
 
 onBeforeUnmount(() => {
   stopRealtime()
+  stopRidePolling()
 })
 </script>
 

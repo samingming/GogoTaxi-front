@@ -408,6 +408,16 @@ const suppressSearch: Record<FieldKind, boolean> = {
   arrival: false,
 }
 
+function isKakaoStatusOk(status: unknown) {
+  const services = kakaoApi?.maps?.services as unknown
+  const statusMap =
+    services && typeof services === 'object' && 'Status' in services
+      ? (services as { Status?: { OK?: string } }).Status
+      : undefined
+  const ok = typeof statusMap?.OK === 'string' ? statusMap.OK : 'OK'
+  return status === ok || status === 'OK'
+}
+
 watch(departureQuery, (value) => scheduleSearch('departure', value))
 watch(arrivalQuery, (value) => scheduleSearch('arrival', value))
 
@@ -434,13 +444,14 @@ function scheduleSearch(kind: FieldKind, keyword: string) {
 }
 
 function runSearch(kind: FieldKind, keyword: string) {
-  if (!placesService || !kakaoApi) return
+  const service = placesService
+  if (!service || !kakaoApi) return
   isSearching[kind] = true
-  placesService.keywordSearch(
+  service.keywordSearch(
     keyword,
     (data, status) => {
       isSearching[kind] = false
-      if (status !== kakaoApi!.maps.services.Status.OK || !Array.isArray(data)) {
+      if (!isKakaoStatusOk(status) || !Array.isArray(data)) {
         setSuggestions(kind, [])
         return
       }
@@ -494,6 +505,35 @@ function handleBlur(kind: FieldKind) {
       activeField.value = null
     }
   }, 120)
+}
+
+async function ensurePlaceSelected(kind: FieldKind) {
+  // If user only typed text, pick the first Kakao search result to fill lat/lng.
+  if (form[kind]) return
+  const query = (kind === 'departure' ? departureQuery.value : arrivalQuery.value).trim()
+  if (!query || query.length < 2 || !placesService || !kakaoApi) return
+  const service = placesService
+  if (!service) return
+
+  await new Promise<void>((resolve) => {
+    service.keywordSearch(
+      query,
+      (data, status) => {
+        if (isKakaoStatusOk(status) && Array.isArray(data) && data[0]) {
+          const item = data[0]
+          const place: SelectedPlace = {
+            id: item.id ?? `${item.x}-${item.y}`,
+            name: item.place_name || query,
+            address: item.road_address_name || item.address_name || query,
+            position: { lat: Number(item.y), lng: Number(item.x) },
+          }
+          selectPlace(kind, place)
+        }
+        resolve()
+      },
+      { size: 1 },
+    )
+  })
 }
 
 function openMapPicker(kind: FieldKind) {
@@ -617,7 +657,7 @@ function reverseGeocode(position: { lat: number; lng: number }) {
       return
     }
     geocoder.coord2Address(position.lng, position.lat, (result, status) => {
-      if (status === kakaoApi!.maps.services.Status.OK && result[0]) {
+      if (isKakaoStatusOk(status) && result[0]) {
         const road = result[0].road_address?.address_name
         const lot = result[0].address?.address_name
         resolve({
@@ -734,7 +774,7 @@ function buildCreateRoomPayload(): CreateRoomPayload {
   ].filter(Boolean)
 
   return {
-    title: form.title.trim() || '나만의 택시팟',
+    title: form.title.trim() || '꼬꼬택과 고고 택시~',
     departure: departureLocation,
     arrival: arrivalLocation,
     departureLabel: departureLocation.label || departureLocation.name,
@@ -757,48 +797,92 @@ function buildCreateRoomPayload(): CreateRoomPayload {
   }
 }
 
-async function submitForm() {
-  errorMessage.value = ''
-  successMessage.value = ''
-
-  if (!isValid.value) {
-    errorMessage.value = '?? ??? ?? ???? ??/??? ??? ???.'
-    return
-  }
-
-  if (isSubmitting.value) return
-
-  let payload: CreateRoomPayload
-  try {
-    payload = buildCreateRoomPayload()
-  } catch (buildError) {
-    errorMessage.value =
-      buildError instanceof Error && buildError.message
-        ? buildError.message
-        : '???? ???? ??? ???.'
-    return
-  }
-
-  try {
-    isSubmitting.value = true
-    const createdRoom = await createRoom(payload)
-    successMessage.value = '?? ??????! ? ????.'
-    setTimeout(() => {
-      if (createdRoom?.id) {
-        router.push({ name: 'room-detail', params: { id: createdRoom.id } })
-      } else {
-        router.push({ name: 'find-room' })
-      }
-      resetForm()
-    }, 500)
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error && error.message
-        ? error.message
-        : '?? ??? ????. ?? ? ?? ??? ???.'
-  } finally {
-    isSubmitting.value = false
-  }
+async function submitForm() {
+
+  errorMessage.value = ''
+
+  successMessage.value = ''
+
+  await Promise.all([ensurePlaceSelected('departure'), ensurePlaceSelected('arrival')])
+
+
+
+  if (!isValid.value) {
+
+    errorMessage.value = '?? ??? ?? ???? ??/??? ??? ???.'
+
+    return
+
+  }
+
+
+
+  if (isSubmitting.value) return
+
+
+
+  let payload: CreateRoomPayload
+
+  try {
+
+    payload = buildCreateRoomPayload()
+
+  } catch (buildError) {
+
+    errorMessage.value =
+
+      buildError instanceof Error && buildError.message
+
+        ? buildError.message
+
+        : '???? ???? ??? ???.'
+
+    return
+
+  }
+
+
+
+  try {
+
+    isSubmitting.value = true
+
+    const createdRoom = await createRoom(payload)
+
+    successMessage.value = '?? ??????! ? ????.'
+
+    setTimeout(() => {
+
+      if (createdRoom?.id) {
+
+        router.push({ name: 'room-detail', params: { id: createdRoom.id } })
+
+      } else {
+
+        router.push({ name: 'find-room' })
+
+      }
+
+      resetForm()
+
+    }, 500)
+
+  } catch (error) {
+
+    errorMessage.value =
+
+      error instanceof Error && error.message
+
+        ? error.message
+
+        : '?? ??? ????. ?? ? ?? ??? ???.'
+
+  } finally {
+
+    isSubmitting.value = false
+
+  }
+
 }
 
 </script>

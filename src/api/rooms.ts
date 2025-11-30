@@ -225,9 +225,9 @@ function resolveCurrentUserId() {
 function parseUser(payload: string | null) {
   if (!payload) return null
   try {
-    const parsed = JSON.parse(payload) as { id?: string }
-    if (parsed && typeof parsed.id === 'string') {
-      return parsed
+    const parsed = JSON.parse(payload) as { id?: string | number }
+    if (parsed && (typeof parsed.id === 'string' || typeof parsed.id === 'number')) {
+      return { ...parsed, id: String(parsed.id) }
     }
   } catch {
     return null
@@ -328,7 +328,7 @@ function normalizeParticipant(rawInput: RawRoom, index: number): RoomParticipant
   const user = asRecord(rawInput.user)
   const profile = asRecord(rawInput.profile)
   const id =
-    pickString([rawInput.id, rawInput.userId, rawInput.memberId, user?.id]) ||
+    pickStringOrNumber([rawInput.id, rawInput.userId, rawInput.memberId, user?.id]) ||
     `participant-${index}`
   const name =
     pickString([rawInput.name, rawInput.nickname, user?.name, user?.nickname, profile?.name]) ||
@@ -587,6 +587,19 @@ function pickString(values: unknown[], fallback?: string) {
     if (typeof value === 'string') {
       const trimmed = value.trim()
       if (trimmed) return trimmed
+    }
+  }
+  return fallback
+}
+
+function pickStringOrNumber(values: unknown[], fallback?: string) {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed) return trimmed
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value)
     }
   }
   return fallback
