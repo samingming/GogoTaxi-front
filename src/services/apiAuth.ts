@@ -44,13 +44,13 @@ function persistToken(data: unknown) {
 
 export async function signupWithApi(payload: SignupPayload) {
   ensureConfigured()
-  const { data } = await http.post('/auth/signup', payload)
+  const { data } = await http.post('/api/auth/signup', payload)
   return data
 }
 
 export async function loginWithApi(payload: LoginPayload) {
   ensureConfigured()
-  const { data } = await http.post('/auth/login', payload)
+  const { data } = await http.post('/api/auth/login', payload)
   persistToken(data)
   return data
 }

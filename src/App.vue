@@ -40,16 +40,18 @@ const handleViewportChange = () => updateBrowserUiOffset()
 
 onMounted(() => {
   updateBrowserUiOffset()
-  if (typeof window === 'undefined' || !window.visualViewport) return
+  if (typeof window === 'undefined') return
+  startNotificationPolling()
+  if (!window.visualViewport) return
   window.visualViewport.addEventListener('resize', handleViewportChange)
   window.visualViewport.addEventListener('scroll', handleViewportChange)
-  startNotificationPolling()
 })
 
 onBeforeUnmount(() => {
-  if (typeof window === 'undefined' || !window.visualViewport) return
-  window.visualViewport.removeEventListener('resize', handleViewportChange)
-  window.visualViewport.removeEventListener('scroll', handleViewportChange)
+  if (typeof window !== 'undefined' && window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', handleViewportChange)
+    window.visualViewport.removeEventListener('scroll', handleViewportChange)
+  }
   stopNotificationPolling()
 })
 

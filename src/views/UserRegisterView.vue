@@ -91,6 +91,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
+import { isAxiosError } from 'axios'
 import { useRouter, useRoute } from 'vue-router'
 import {
   registerUser,
@@ -279,8 +280,14 @@ async function submit() {
     alert('회원가입이 완료되었습니다!')
     router.push({ name: 'login' })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '회원가입에 실패했습니다.'
-    alert(msg)
+    let message = '회원가입에 실패했습니다.'
+    if (isAxiosError(err)) {
+      const payload = err.response?.data as { message?: string; error?: string }
+      message = payload?.message || payload?.error || `회원가입에 실패했습니다. (코드 ${err.response?.status ?? '알수없음'})`
+    } else if (err instanceof Error) {
+      message = err.message
+    }
+    alert(message)
   }
 }
 

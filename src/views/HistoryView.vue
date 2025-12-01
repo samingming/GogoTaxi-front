@@ -10,106 +10,209 @@
       </header>
 
       <main class="history-list">
-        <section v-for="ride in rides" :key="ride.id" class="history-card">
-          <header class="card-header">
-            <div class="ride-meta">
-              <span class="ride-icon" aria-hidden="true">&#128661;</span>
-              <div>
-                <h2>{{ labels.rideType }}</h2>
-                <p class="ride-date">{{ ride.date }}</p>
+        <p v-if="isLoading" class="history-status">{{ labels.loadingHistory }}</p>
+        <div v-else-if="errorMessage" class="history-status history-status--error">
+          <p>{{ errorMessage }}</p>
+          <button type="button" class="status-button" @click="loadRideHistory">
+            {{ labels.retry }}
+          </button>
+        </div>
+        <p v-else-if="!rides.length" class="history-status history-status--empty">
+          {{ labels.emptyHistory }}
+        </p>
+        <template v-else>
+          <section v-for="ride in rides" :key="ride.id" class="history-card">
+            <header class="card-header">
+              <div class="ride-meta">
+                <span class="ride-icon" aria-hidden="true">&#128661;</span>
+                <div>
+                  <h2>{{ labels.rideType }}</h2>
+                  <p class="ride-date">{{ ride.date }}</p>
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
 
-          <dl class="ride-details">
-            <div class="ride-row">
-              <dt>{{ labels.duration }}</dt>
-              <dd>{{ ride.time }}</dd>
-            </div>
-            <div class="ride-row">
-              <dt>{{ labels.origin }}</dt>
-              <dd>{{ ride.origin }}</dd>
-            </div>
-            <div class="ride-row">
-              <dt>{{ labels.destination }}</dt>
-              <dd>{{ ride.destination }}</dd>
-            </div>
-            <div class="ride-row total">
-              <dt>{{ labels.fare }}</dt>
-              <dd>{{ ride.fare }}</dd>
-            </div>
-          </dl>
+            <dl class="ride-details">
+              <div class="ride-row">
+                <dt>{{ labels.duration }}</dt>
+                <dd>{{ ride.time }}</dd>
+              </div>
+              <div class="ride-row">
+                <dt>{{ labels.origin }}</dt>
+                <dd>{{ ride.origin }}</dd>
+              </div>
+              <div class="ride-row">
+                <dt>{{ labels.destination }}</dt>
+                <dd>{{ ride.destination }}</dd>
+              </div>
+              <div class="ride-row total">
+                <dt>{{ labels.fare }}</dt>
+                <dd>{{ ride.fare }}</dd>
+              </div>
+            </dl>
 
-          <div class="card-actions">
-            <button
-              type="button"
-              class="action-button action-button--primary"
-              @click="goToReview(ride.id)"
-            >
-              {{ labels.review }}
-            </button>
-          </div>
-        </section>
+            <div class="ride-review">
+              <div class="ride-review__header">
+                <p class="ride-review__label">{{ labels.yourReview }}</p>
+                <div class="ride-review__rating" :aria-label="`별점 ${ride.rating || 0}점`">
+                  <span
+                    v-for="star in stars"
+                    :key="star"
+                    class="ride-review__star"
+                    :class="{ 'ride-review__star--active': star <= (ride.rating || 0) }"
+                    aria-hidden="true"
+                  >
+                    ★
+                  </span>
+                  <span class="ride-review__score">
+                    {{ ride.rating ? `${ride.rating} / 5` : labels.notReviewed }}
+                  </span>
+                </div>
+              </div>
+              <p class="ride-review__comment">
+                {{ ride.comment || labels.noComment }}
+              </p>
+            </div>
+
+            <div class="card-actions" v-if="ride.roomId">
+              <button
+                type="button"
+                class="action-button action-button--primary"
+                @click="goToReview(ride.roomId)"
+              >
+                {{ labels.review }}
+              </button>
+            </div>
+          </section>
+        </template>
       </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-import arrowBackIcon from "@/assets/arrowback.svg";
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import arrowBackIcon from '@/assets/arrowback.svg'
+import { fetchRideHistory, type RideHistoryEntry } from '@/services/rideHistoryService'
+import { fetchMyReviews } from '@/services/reviewService'
 
-const router = useRouter();
+type DisplayRide = {
+  id: string
+  roomId: string
+  date: string
+  time: string
+  origin: string
+  destination: string
+  fare: string
+  rating: number | null
+  comment: string
+}
+
+const router = useRouter()
+const rides = ref<DisplayRide[]>([])
+const isLoading = ref(false)
+const errorMessage = ref('')
+const stars = [1, 2, 3, 4, 5]
 
 const labels = {
-  back: "\uB9C8\uC774\uD398\uC774\uC9C0\uB85C \uB3CC\uC544\uAC00\uAE30",
-  title: "\uC774\uC6A9 \uAE30\uB85D",
-  rideType: "\uD0DD\uC2DC",
-  duration: "\uC6B4\uD589 \uC2DC\uAC04",
-  origin: "\uCD9C\uBC1C",
-  destination: "\uB3C4\uCC29",
-  fare: "\uAE08\uC561",
-  review: "\uD3C9\uAC00\uD558\uAE30",
-};
+  back: '마이페이지로 돌아가기',
+  title: '이용 기록',
+  rideType: '택시',
+  duration: '운행 시간',
+  origin: '출발',
+  destination: '도착',
+  fare: '금액',
+  review: '평가하기',
+  loadingHistory: '이용 기록을 불러오는 중이에요...',
+  retry: '다시 시도',
+  emptyHistory: '이용 기록이 아직 없어요.',
+  yourReview: '나의 후기',
+  notReviewed: '아직 후기를 작성하지 않았어요',
+  noComment: '작성된 후기가 없습니다.',
+}
 
-const rides = [
-  {
-    id: 1,
-    date: "25.xx.xx (\uC6D4)",
-    time: "13:21 - 13:29",
-    origin: "\uCD9C\uBC1C\uC9C0",
-    destination: "\uB3C4\uCC29\uC9C0",
-    fare: "5,700\uC6D0",
-  },
-  {
-    id: 2,
-    date: "25.10.14 (\uC6D4)",
-    time: "07:10 - 07:17",
-    origin: "\uC804\uBD81\uB300 \uC804\uC8FC\uCE74\uD398\uC2A4 \uCC3D\uC758\uAD00",
-    destination: "\uC804\uC8FC\uC2DC\uC678\uBC84\uC2A4\uACF5\uC6A9\uD130\uBBF8\uB110",
-    fare: "5,000\uC6D0",
-  },
-  {
-    id: 3,
-    date: "25.10.06 (\uC77C)",
-    time: "10:23 - 10:30",
-    origin: "\uC804\uBD81\uB300 \uD55C\uC6B8\uAD00",
-    destination: "\uC804\uC8FC\uC5ED \uC11C\uBD80\uAD11\uC7A5",
-    fare: "6,200\uC6D0",
-  },
-];
+const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  weekday: 'short',
+})
+const timeFormatter = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' })
+const currencyFormatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 })
+
+function formatDate(value: Date | null) {
+  if (!value) return '날짜 정보 없음'
+  return dateFormatter.format(value)
+}
+
+function formatTimeRange(start: Date | null, end: Date | null) {
+  if (start && end) return `${timeFormatter.format(start)} - ${timeFormatter.format(end)}`
+  if (start) return timeFormatter.format(start)
+  if (end) return timeFormatter.format(end)
+  return '시간 정보 없음'
+}
+
+function formatFare(amount: number) {
+  const normalized = Number.isFinite(amount) ? Math.max(0, amount) : 0
+  return `${currencyFormatter.format(normalized)}원`
+}
+
+function mapHistoryToRide(entry: RideHistoryEntry, reviewMap: Map<string, { rating: number; comment?: string }>): DisplayRide {
+  const start = entry.room?.departureTime ? new Date(entry.room.departureTime) : null
+  const end = entry.settledAt ? new Date(entry.settledAt) : null
+  const review = reviewMap.get(entry.roomId)
+  return {
+    id: entry.id,
+    roomId: entry.roomId,
+    date: formatDate(start ?? end),
+    time: formatTimeRange(start, end),
+    origin: entry.room?.departureLabel ?? '출발지 정보 없음',
+    destination: entry.room?.arrivalLabel ?? '도착지 정보 없음',
+    fare: formatFare(entry.actualFare ?? entry.netAmount ?? 0),
+    rating: review?.rating ?? null,
+    comment: review?.comment ?? '',
+  }
+}
+
+const loadRideHistory = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
+  errorMessage.value = ''
+  try {
+    const [histories, reviews] = await Promise.all([
+      fetchRideHistory(),
+      fetchMyReviews().catch(() => []),
+    ])
+    const reviewMap = new Map<string, { rating: number; comment?: string }>()
+    reviews.forEach(review => {
+      reviewMap.set(review.roomId, { rating: review.rating, comment: review.comment })
+    })
+    rides.value = histories.map(history => mapHistoryToRide(history, reviewMap))
+  } catch (error) {
+    console.error('Failed to load ride history', error)
+    errorMessage.value = '이용 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'
+    rides.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadRideHistory()
+})
 
 const goBack = () => {
-  router.back();
-};
+  router.back()
+}
 
-const goToReview = (rideId: number) => {
+const goToReview = (roomId: string) => {
   router
-    .push({ name: "ride-review", query: { rideId } })
-    .catch((error) => {
-      console.warn("\uB9AC\uBDF0 \uD398\uC774\uC9C0 \uC774\uB3D9 \uC911 \uC624\uB958", error);
-    });
-};
+    .push({ name: 'ride-review', query: { roomId } })
+    .catch(error => {
+      console.warn('리뷰 페이지 이동 중 오류', error)
+    })
+}
 </script>
 
 <style scoped>
