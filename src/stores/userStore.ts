@@ -4,9 +4,9 @@ import { fetchWalletBalance } from "@/services/walletService";
 export type GenderValue = "male" | "female" | "M" | "F" | "남성" | "여성" | "";
 
 const state = reactive({
-  nickname: "김예은",
-  phone: "010-1234-5678",
-  gender: "여성" as GenderValue,
+  nickname: "",
+  phone: "",
+  gender: "" as GenderValue,
   balance: 0,
   isBalanceLoaded: false,
 });

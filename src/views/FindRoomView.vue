@@ -197,7 +197,7 @@ const isLoadingRooms = ref(false)
 const roomsError = ref<string | null>(null)
 const roomsStatusMessage = computed(() => {
   if (roomsError.value) return roomsError.value
-  if (isLoadingRooms.value) return '�� ��� ����� �����ϴ�...'
+  if (isLoadingRooms.value) return '방 목록을 불러오는 중이에요...'
   return ''
 })
 const hasRoomsStatus = computed(() => Boolean(roomsStatusMessage.value))
@@ -248,7 +248,7 @@ async function loadRooms() {
     }
   } catch (error) {
     roomsError.value =
-      error instanceof Error ? error.message : '�� ��� ����� ������ �� �����ϴ�.'
+      error instanceof Error ? error.message : '방 목록을 불러오지 못했어요.'
   } finally {
     isLoadingRooms.value = false
   }

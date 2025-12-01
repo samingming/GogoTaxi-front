@@ -58,8 +58,17 @@ export async function signUp(payload: SignUpPayload) {
 }
 
 export async function fetchMe() {
-  const res = await apiClient.get<{ me: LoginResponse['user'] }>('/api/me')
-  return res.data.me
+  try {
+    const res = await apiClient.get<{ me: LoginResponse['user'] }>('/api/me')
+    return res.data.me
+  } catch (error: any) {
+    // 일부 환경에서 /api/me가 없을 수 있어 /api/auth/me로 폴백
+    if (error?.response?.status === 404) {
+      const res = await apiClient.get<{ me: LoginResponse['user'] }>('/api/auth/me')
+      return res.data.me
+    }
+    throw error
+  }
 }
 
 export type UpdateProfilePayload = Partial<Pick<SignUpPayload, 'name' | 'phone' | 'gender' | 'birthDate'>>

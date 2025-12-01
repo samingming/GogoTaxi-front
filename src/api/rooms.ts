@@ -86,7 +86,7 @@ export type CreateRoomPayload = {
 
 export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promise<RoomPreview[]> {
   if (!import.meta.env.VITE_API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL ?�경 변?��? ?�정?�어 ?��? ?�아??')
+    throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
   try {
     const res = await apiClient.get(ROOMS_ENDPOINT, { params })
@@ -99,7 +99,7 @@ export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promis
 
 export async function createRoom(payload: CreateRoomPayload): Promise<RoomPreview> {
   if (!import.meta.env.VITE_API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL ?�경 변?��? ?�정?�어 ?��? ?�아??')
+    throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
   try {
     const res = await apiClient.post(ROOMS_ENDPOINT, payload)
@@ -159,7 +159,7 @@ export async function leaveRoomFromApi(roomId: string) {
 
 export async function joinRoomFromApi(roomId: string, seatNumber?: number | null) {
   if (!roomId) {
-    throw new Error('�? ID가 ?�요?�요..')
+    throw new Error('방 ID가 필요해요.')
   }
   const url = buildJoinUrl(roomId)
   const payload: Record<string, unknown> = { roomId }

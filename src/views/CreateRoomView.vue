@@ -809,7 +809,7 @@ async function submitForm() {
 
   if (!isValid.value) {
 
-    errorMessage.value = '?? ??? ?? ???? ??/??? ??? ???.'
+    errorMessage.value = '필수 정보를 모두 입력해 주세요.'
 
     return
 
@@ -835,7 +835,7 @@ async function submitForm() {
 
         ? buildError.message
 
-        : '???? ???? ??? ???.'
+        : '방 정보를 처리하는 중 오류가 발생했어요.'
 
     return
 
@@ -849,7 +849,7 @@ async function submitForm() {
 
     const createdRoom = await createRoom(payload)
 
-    successMessage.value = '?? ??????! ? ????.'
+    successMessage.value = '방이 생성되었어요! 곧 이동합니다.'
 
     setTimeout(() => {
 
@@ -875,7 +875,7 @@ async function submitForm() {
 
         ? error.message
 
-        : '?? ??? ????. ?? ? ?? ??? ???.'
+        : '방 생성에 실패했어요. 잠시 후 다시 시도해 주세요.'
 
   } finally {
 

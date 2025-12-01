@@ -295,10 +295,10 @@ async function submit() {
         terms: terms.value,
       })
     }
-    alert('?�원가?�이 ?�료?�었?�니??')
+    alert('회원가입이 완료되었어요.')
     router.push({ name: 'login' })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '?�원가?�에 ?�패?�습?�다.'
+    const msg = err instanceof Error ? err.message : '회원가입에 실패했습니다.'
     alert(msg)
   }
 }
@@ -339,7 +339,7 @@ async function submitSocial() {
       router.replace(redirect)
     } catch (error) {
       console.error(error)
-      alert('?�의 처리???�패?�습?�다. ?�시 ?�도??주세??')
+      alert('동의 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     }
     return
   }
