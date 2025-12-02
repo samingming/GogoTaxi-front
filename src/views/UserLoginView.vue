@@ -131,12 +131,14 @@ function resolveErrorMessage(err: unknown, fallback: string) {
 }
 
 function persistSession(res: LoginResponse) {
-  localStorage.setItem('gogotaxi_token', res.accessToken)
-  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
-  localStorage.setItem('gogotaxi_access_token', res.accessToken)
-  if (res.refreshToken) {
-    localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+  const accessToken = res.accessToken || (res as { token?: string }).token
+  if (accessToken) {
+    localStorage.setItem('gogotaxi_token', accessToken)
+    localStorage.setItem('gogotaxi_access_token', accessToken)
   }
+  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+  const refreshToken = res.refreshToken
+  if (refreshToken) localStorage.setItem('gogotaxi_refresh_token', refreshToken)
 }
 
 function storePendingConsent(params: { token: string; provider: string; name?: string; redirect?: string }) {
@@ -180,7 +182,7 @@ async function handleRemoteSocial(result: SocialLoginResponse, redirect: string)
 // 🔥 실제 로그인 처리
 async function login() {
   if (!id.value || !pw.value) {
-    alert('?????? ??????? ????? ?????.')
+    alert('아이디와 비밀번호를 모두 입력해 주세요.')
     return
   }
 
@@ -192,7 +194,7 @@ async function login() {
     router.push(resolveRedirect())
   } catch (err: unknown) {
     console.error(err)
-    const msg = resolveErrorMessage(err, '?????? ????????.')
+    const msg = resolveErrorMessage(err, '로그인에 실패했습니다.')
     alert(msg)
   } finally {
     loading.value = false
@@ -221,7 +223,7 @@ async function kakaoLogin() {
     const msg =
       err instanceof Error
         ? err.message
-        : '???? ??????? ????????. ??? ????? ?????.'
+        : '카카오 로그인 중 오류가 발생했어요.'
     alert(msg)
   }
 }
@@ -240,7 +242,7 @@ async function googleLogin() {
     } else {
       const result = socialLoginLocal(
         'google',
-        { id: accessToken, name: 'Google �����' },
+        { id: accessToken, name: 'Google 사용자' },
         { redirect }
       )
       if (result.status === 'needs_terms') {
@@ -252,14 +254,13 @@ async function googleLogin() {
   } catch (err: unknown) {
     console.error(err)
     const msg =
-      err instanceof Error ? err.message : 'Google ?????? ????????.'
+      err instanceof Error ? err.message : 'Google 로그인 중 오류가 발생했어요.'
     alert(msg)
   }
 }
 </script>
 
 <style scoped>
-/* (스타일 부분은 그대로 유지) */
 .auth-wrap {
   min-height: calc(100vh - var(--header-h, 56px));
   display: grid;
@@ -267,7 +268,7 @@ async function googleLogin() {
   padding: 32px 16px;
   background: #f6f7f9;
 }
-/* 이하 동일, 생략 없이 네 원본 그대로 두면 됨 */
+
 .card {
   width: 100%;
   max-width: 380px;

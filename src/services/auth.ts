@@ -134,10 +134,20 @@ export function logout() {
 
 export function getCurrentUser(): AuthProfile | null {
   const storage = getStorage()
-  const raw = storage.getItem(CURRENT_KEY)
+  const raw = storage.getItem(CURRENT_KEY) ?? storage.getItem('gogotaxi_user')
   if (!raw) return null
   try {
-    return JSON.parse(raw) as AuthProfile
+    const parsed = JSON.parse(raw) as Partial<User>
+    if (!parsed || (!parsed.id && parsed.id !== 0)) return null
+    const id =
+      typeof parsed.id === 'string'
+        ? parsed.id
+        : typeof parsed.id === 'number'
+          ? String(parsed.id)
+          : null
+    if (!id) return null
+    const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : id
+    return { id, name }
   } catch {
     return null
   }

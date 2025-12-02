@@ -4,9 +4,9 @@ import { fetchWalletBalance } from "@/services/walletService";
 export type GenderValue = "male" | "female" | "M" | "F" | "남성" | "여성" | "";
 
 const state = reactive({
-  nickname: "김예은",
-  phone: "010-1234-5678",
-  gender: "여성" as GenderValue,
+  nickname: "",
+  phone: "",
+  gender: "" as GenderValue,
   balance: 0,
   isBalanceLoaded: false,
 });
@@ -24,6 +24,16 @@ export const addUserBalance = (amount: number) => {
 };
 
 export const refreshUserBalance = async () => {
+  const hasToken =
+    typeof window !== "undefined" &&
+    (localStorage.getItem("gogotaxi_access_token") ||
+      localStorage.getItem("gogotaxi_token") ||
+      localStorage.getItem("auth_token"));
+  if (!hasToken) {
+    // 로그인 전에는 잔액을 불러오지 않음
+    state.isBalanceLoaded = false;
+    return 0;
+  }
   try {
     const balance = await fetchWalletBalance();
     state.balance = balance;

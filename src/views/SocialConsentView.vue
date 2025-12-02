@@ -151,12 +151,14 @@ const providerLabel = computed(() => {
 })
 
 function persistSession(res: LoginResponse) {
-  localStorage.setItem('gogotaxi_token', res.accessToken)
-  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
-  localStorage.setItem('gogotaxi_access_token', res.accessToken)
-  if (res.refreshToken) {
-    localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+  const accessToken = res.accessToken || (res as { token?: string }).token
+  if (accessToken) {
+    localStorage.setItem('gogotaxi_token', accessToken)
+    localStorage.setItem('gogotaxi_access_token', accessToken)
   }
+  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+  const refreshToken = res.refreshToken
+  if (refreshToken) localStorage.setItem('gogotaxi_refresh_token', refreshToken)
 }
 
 function goLogin() {
