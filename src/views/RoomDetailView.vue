@@ -13,7 +13,7 @@
       </div>
       <div class="room-live__actions">
         <button type="button" class="btn btn--ghost" :disabled="isLeavingRoom" @click="leaveRoom">
-          {{ isLeavingRoom ? '나가는 중이에요..' : '방 나가기' }}
+          {{ isLeavingRoom ? '나가는 중이에요...' : '방 나가기' }}
         </button>
         <div class="room-live__cta">
           <button type="button" class="btn btn--primary" @click="changeSeat">좌석 다시 고르기</button>
@@ -26,7 +26,7 @@
           >
             {{ rideRequesting ? '호출 중...' : 'Uber 호출' }}
           </button>
-          <span v-else-if="!isHost" class="room-live__hint">방장의 호출을 기다려주세요.</span>
+          <span v-else-if="!isHost" class="room-live__hint">방장의 호출을 기다려 주세요.</span>
         </div>
       </div>
       <p v-if="detailLoading" class="room-live__status">방 정보를 불러오는 중이에요...</p>
@@ -36,27 +36,6 @@
     </header>
 
     <div class="room-live__grid">
-      <article class="room-panel room-panel--route">
-        <h2>이동 정보</h2>
-        <dl>
-          <div><dt>출발지</dt><dd>{{ room.departure.label }}</dd></div>
-          <div><dt>도착지</dt><dd>{{ room.arrival.label }}</dd></div>
-          <div><dt>출발 시간</dt><dd>{{ room.time }}</dd></div>
-          <div><dt>예상 도착</dt><dd>{{ room.eta ?? '확정 전' }}</dd></div>
-          <div><dt>내 좌석</dt><dd>{{ seatNumber ? `${seatNumber}번 좌석` : '미선택' }}</dd></div>
-        </dl>
-        <div class="room-panel__cta">
-          <button type="button" class="link-btn" @click="toggleRouteMap">
-            {{ showRouteMap ? '지도 닫기' : '경로 보기' }}
-          </button>
-          <button type="button" class="link-btn" @click="changeSeat">좌석 다시 고르기</button>
-        </div>
-        <transition name="route-map">
-          <div v-if="showRouteMap" class="route-map-wrapper">
-            <RouteMapBox :departure="room.departure" :arrival="room.arrival" :title="room.title" />
-          </div>
-        </transition>
-      </article>
 
       <article class="room-panel room-panel--fare">
         <h2>요금 정보</h2>
@@ -107,6 +86,16 @@
             배차 다시 시도하기
           </button>
         </div>
+        <div class="room-panel__cta room-panel__cta--route">
+          <button type="button" class="link-btn" @click="toggleRouteMap">
+            {{ showRouteMap ? '지금 숨기기' : '경로 보기' }}
+          </button>
+        </div>
+        <transition name="route-map">
+          <div v-if="showRouteMap" class="route-map-wrapper">
+            <RouteMapBox :departure="room.departure" :arrival="room.arrival" :title="room.title" />
+          </div>
+        </transition>
         <ol class="dispatch-timeline" aria-label="배차 진행 단계">
           <li
             v-for="step in dispatchTimeline"

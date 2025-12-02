@@ -1,13 +1,12 @@
-<template>
+﻿<template>
   <section class="receipt-scan">
     <header class="receipt-scan__header">
-      <button type="button" class="back-btn" @click="goBack">
-        <span aria-hidden="true">←</span>
-        <span class="sr-only">뒤로가기</span>
-      </button>
-      <div>
-        <p class="eyebrow">AI 정산 보조</p>
+      <div class="receipt-scan__header-top">
+        <button type="button" class="back-btn" @click="goBack">
+          <img :src="arrowBackIcon" alt="" class="back-icon" aria-hidden="true" />
+        </button>
         <h1>영수증 인식</h1>
+        <span class="header-spacer" aria-hidden="true"></span>
       </div>
     </header>
 
@@ -17,8 +16,9 @@
         <span>{{ selectedFile ? selectedFile.name : '영수증 이미지를 선택해 주세요.' }}</span>
       </label>
       <p class="helper">
-        Gemini Vision을 통해 택시 영수증에서 총 금액을 추출해 정산에 활용할 수 있어요.
+        Gemini Vision을 통해 Uber 영수증에서 총 금액을 추출해 정산에 활용할 수 있어요.
         이미지는 서버로 전송하여 분석한 뒤 결과만 저장됩니다.
+        <br><br> ※ 우버 하단 탭의 활동 -> 이전 내역에서 차량 서비스 세부 정보 탭 -> 영수증 버튼 클릭
       </p>
       <div v-if="previewUrl" class="preview">
         <img :src="previewUrl" alt="선택된 영수증 이미지 미리보기" />
@@ -38,33 +38,13 @@
     <section v-if="analysisResult" class="result-card">
       <header>
         <h2>인식 결과</h2>
-        <small v-if="analysisResult.modelLatencyMs"
-          >{{ (analysisResult.modelLatencyMs / 1000).toFixed(1) }}초 소요</small
-        >
       </header>
       <dl>
         <div>
           <dt>총 금액</dt>
           <dd>{{ formattedTotal }}</dd>
         </div>
-        <div>
-          <dt>요약</dt>
-          <dd>{{ analysisResult.summary || '추출된 요약이 없어요.' }}</dd>
-        </div>
       </dl>
-      <div v-if="analysisResult.items?.length" class="items">
-        <p class="items__title">세부 항목</p>
-        <ul>
-          <li v-for="(item, index) in analysisResult.items" :key="index">
-            <span>{{ item.label }}</span>
-            <strong>{{ formatAmount(item.amount) }}</strong>
-          </li>
-        </ul>
-      </div>
-      <details>
-        <summary>원본 JSON 확인</summary>
-        <pre>{{ formattedJson }}</pre>
-      </details>
     </section>
   </section>
 </template>
@@ -74,6 +54,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ReceiptAnalysis } from '@/services/receiptService'
 import { analyzeReceipt } from '@/services/receiptService'
+import arrowBackIcon from '@/assets/arrowback.svg'
 
 const router = useRouter()
 const selectedFile = ref<File | null>(null)
@@ -135,39 +116,78 @@ function formatAmount(amount: number | null | undefined) {
 
 <style scoped>
 .receipt-scan {
-  min-height: calc(100dvh - var(--header-h, 56px));
-  padding: clamp(20px, 4vw, 40px) clamp(18px, 4vw, 48px);
-  background: #fbf8f3;
-  display: grid;
-  gap: 20px;
+  min-height: max(
+    0px,
+    calc(100dvh - var(--header-h) - var(--tab-h) - var(--safe-bottom) - var(--browser-ui-bottom))
+  );
+  padding: 2rem 1.25rem calc(3rem + var(--safe-bottom));
+  background: #3a2e20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 3vw, 18px);
+  box-sizing: border-box;
 }
 
 .receipt-scan__header {
-  display: flex;
+  color: #f8f1e4;
+  text-align: center;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.receipt-scan__header-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  margin: 0 auto 8px;
+  max-width: 960px;
+  width: 100%;
 }
 
 .receipt-scan__header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
 }
 
 .receipt-scan__header .eyebrow {
   margin: 0;
-  font-size: 0.85rem;
-  color: #836848;
+  font-size: 0.9rem;
+  color: rgba(255, 244, 220, 0.78);
 }
 
 .back-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
   border: none;
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-  font-size: 1.2rem;
+  background: transparent;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.back-btn:hover {
+  transform: translateY(-2px);
+}
+
+.back-btn:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.back-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.header-spacer {
+  width: 32px;
+  height: 32px;
 }
 
 .upload-card,
@@ -175,9 +195,12 @@ function formatAmount(amount: number | null | undefined) {
   background: #fff;
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 16px 34px rgba(20, 12, 6, 0.12);
   display: grid;
   gap: 16px;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .file-input {
@@ -235,10 +258,7 @@ function formatAmount(amount: number | null | undefined) {
 }
 
 .result-card header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  margin: 0;
 }
 
 .result-card dl {
@@ -257,34 +277,10 @@ function formatAmount(amount: number | null | undefined) {
   font-size: 1.1rem;
 }
 
-.items__title {
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.items ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.items li {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.95rem;
-}
-
+.items__title,
+.items ul,
+.items li,
 details {
-  background: #f8f4ec;
-  border-radius: 12px;
-  padding: 12px;
-}
-
-details pre {
-  white-space: pre-wrap;
-  font-size: 0.8rem;
-  margin: 8px 0 0;
+  display: none;
 }
 </style>
