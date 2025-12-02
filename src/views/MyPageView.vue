@@ -156,6 +156,9 @@ const loadProfile = async () => {
     user.gender = (me.gender as GenderValue) || "";
   } catch (err) {
     console.error("Failed to load profile", err);
+    user.nickname = "";
+    user.phone = "";
+    user.gender = "";
   }
 };
 

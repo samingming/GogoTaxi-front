@@ -13,8 +13,8 @@
 
         <template v-if="!isPendingSocial">
           <div class="field row">
-            <input v-model.trim="userid" type="text" placeholder="아이디" />
-            <button type="button" class="ghost" @click="checkId">중복확인</button>
+            <input v-model.trim="userid" type="text" placeholder="아이디"/>
+            <button type="button" class="ghost" @click="checkId">중복 확인</button>
           </div>
         </template>
 
@@ -23,7 +23,7 @@
             v-model.trim="phone"
             type="tel"
             inputmode="tel"
-            placeholder="전화번호 (- 없이 입력)"
+            placeholder="전화번호"
             @input="onPhoneInput"
             autocomplete="tel-national"
           />
@@ -99,7 +99,7 @@ import {
   getPendingSocial,
   clearPendingSocial,
 } from '@/services/auth'
-import { signupWithApi, isAuthApiConfigured } from '@/services/apiAuth'
+import { signupWithApi, isAuthApiConfigured, checkLoginIdAvailability } from '@/services/apiAuth'
 import { completeSocialConsent, type LoginResponse } from '@/api/auth'
 
 const router = useRouter()
@@ -205,16 +205,35 @@ function checkId() {
     alert('아이디를 입력해 주세요.')
     return
   }
-  alert(`'${userid.value}' 아이디로 가입 가능합니다.`)
+  const loginId = userid.value.trim()
+  if (!useRemoteAuth) {
+    alert('아이디를 확인할 수 없습니다.')
+    return
+  }
+  checkLoginIdAvailability(loginId)
+    .then(({ available }) => {
+      if (available) {
+        alert('아이디를 사용하실 수 있습니다.')
+      } else {
+        alert('아이디가 이미 존재합니다.')
+      }
+    })
+    .catch((err) => {
+      console.error(err)
+      alert('아이디 중복확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+    })
 }
 
+
 function persistSession(res: LoginResponse) {
-  localStorage.setItem('gogotaxi_token', res.accessToken)
-  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
-  localStorage.setItem('gogotaxi_access_token', res.accessToken)
-  if (res.refreshToken) {
-    localStorage.setItem('gogotaxi_refresh_token', res.refreshToken)
+  const accessToken = res.accessToken || (res as { token?: string }).token
+  if (accessToken) {
+    localStorage.setItem('gogotaxi_token', accessToken)
+    localStorage.setItem('gogotaxi_access_token', accessToken)
   }
+  localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
+  const refreshToken = res.refreshToken
+  if (refreshToken) localStorage.setItem('gogotaxi_refresh_token', refreshToken)
 }
 
 function goLogin() {
@@ -259,9 +278,9 @@ async function submit() {
         loginId,
         password: pw.value,
         name: trimmedName,
-        gender: gender.value as 'M' | 'F',
         phone: normalizedPhone,
         birthDate: birthDate.value,
+        gender: gender.value as 'M' | 'F',
         smsConsent: sms.value,
         termsConsent: terms.value,
       })
@@ -277,7 +296,7 @@ async function submit() {
         terms: terms.value,
       })
     }
-    alert('회원가입이 완료되었습니다!')
+    alert('회원가입이 완료되었어요.')
     router.push({ name: 'login' })
   } catch (err) {
     let message = '회원가입에 실패했습니다.'
@@ -327,7 +346,7 @@ async function submitSocial() {
       router.replace(redirect)
     } catch (error) {
       console.error(error)
-      alert('동의 처리에 실패했습니다. 다시 시도해 주세요.')
+      alert('동의 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     }
     return
   }

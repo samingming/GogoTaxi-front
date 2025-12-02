@@ -375,6 +375,11 @@ const loadProfile = async () => {
     account.birthDate = me.birthDate ? me.birthDate.split("T")[0] : "";
   } catch (err) {
     console.error("Failed to load profile", err);
+    account.nickname = "";
+    account.phone = "";
+    account.username = "";
+    account.gender = "";
+    account.birthDate = "";
   }
 };
 

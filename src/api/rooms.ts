@@ -86,7 +86,7 @@ export type CreateRoomPayload = {
 
 export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promise<RoomPreview[]> {
   if (!import.meta.env.VITE_API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL ?�경 변?��? ?�정?�어 ?��? ?�아??')
+    throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
   try {
     const res = await apiClient.get(ROOMS_ENDPOINT, { params })
@@ -99,7 +99,7 @@ export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promis
 
 export async function createRoom(payload: CreateRoomPayload): Promise<RoomPreview> {
   if (!import.meta.env.VITE_API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL ?�경 변?��? ?�정?�어 ?��? ?�아??')
+    throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
   try {
     const res = await apiClient.post(ROOMS_ENDPOINT, payload)
@@ -159,7 +159,7 @@ export async function leaveRoomFromApi(roomId: string) {
 
 export async function joinRoomFromApi(roomId: string, seatNumber?: number | null) {
   if (!roomId) {
-    throw new Error('�? ID가 ?�요?�요..')
+    throw new Error('방 ID가 필요해요.')
   }
   const url = buildJoinUrl(roomId)
   const payload: Record<string, unknown> = { roomId }
@@ -225,9 +225,9 @@ function resolveCurrentUserId() {
 function parseUser(payload: string | null) {
   if (!payload) return null
   try {
-    const parsed = JSON.parse(payload) as { id?: string }
-    if (parsed && typeof parsed.id === 'string') {
-      return parsed
+    const parsed = JSON.parse(payload) as { id?: string | number }
+    if (parsed && (typeof parsed.id === 'string' || typeof parsed.id === 'number')) {
+      return { ...parsed, id: String(parsed.id) }
     }
   } catch {
     return null
@@ -328,7 +328,7 @@ function normalizeParticipant(rawInput: RawRoom, index: number): RoomParticipant
   const user = asRecord(rawInput.user)
   const profile = asRecord(rawInput.profile)
   const id =
-    pickString([rawInput.id, rawInput.userId, rawInput.memberId, user?.id]) ||
+    pickStringOrNumber([rawInput.id, rawInput.userId, rawInput.memberId, user?.id]) ||
     `participant-${index}`
   const name =
     pickString([rawInput.name, rawInput.nickname, user?.name, user?.nickname, profile?.name]) ||
@@ -540,12 +540,32 @@ function mapStatus(value: unknown): RoomPreview['status'] | undefined {
     open: 'recruiting',
     '모집중': 'recruiting',
     '대기': 'recruiting',
+    requesting: 'requesting',
+    request: 'requesting',
+    호출: 'requesting',
+    'call-ready': 'requesting',
+    matching: 'matching',
+    search: 'matching',
+    searching: 'matching',
+    match: 'matching',
+    '매칭중': 'matching',
     dispatching: 'dispatching',
     dispatch: 'dispatching',
     assigned: 'dispatching',
-    matching: 'dispatching',
     full: 'dispatching',
     '배차중': 'dispatching',
+    driver_assigned: 'driver_assigned',
+    assigned_driver: 'driver_assigned',
+    accepted: 'driver_assigned',
+    '기사배정': 'driver_assigned',
+    arriving: 'arriving',
+    arrival: 'arriving',
+    enroute: 'arriving',
+    '오는중': 'arriving',
+    aboard: 'aboard',
+    riding: 'aboard',
+    onboard: 'aboard',
+    '탑승': 'aboard',
     success: 'success',
     successed: 'success',
     done: 'success',
@@ -567,6 +587,19 @@ function pickString(values: unknown[], fallback?: string) {
     if (typeof value === 'string') {
       const trimmed = value.trim()
       if (trimmed) return trimmed
+    }
+  }
+  return fallback
+}
+
+function pickStringOrNumber(values: unknown[], fallback?: string) {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed) return trimmed
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value)
     }
   }
   return fallback

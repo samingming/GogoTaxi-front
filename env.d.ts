@@ -7,26 +7,29 @@ declare module '*.vue' {
   export default component
 }
 
-interface ImportMetaEnv {
-  readonly VITE_KAKAO_JS_KEY?: string
-  readonly VITE_GOOGLE_CLIENT_ID?: string
-  readonly VITE_API_URL?: string
-  readonly VITE_API_BASE_URL?: string
-  readonly VITE_MY_ROOMS_PATH?: string
-  readonly VITE_ROOM_DETAIL_PATH?: string
-  readonly VITE_ROOM_LEAVE_PATH?: string
-  readonly VITE_ROOM_LEAVE_METHOD?: string
-  readonly VITE_ROOM_JOIN_PATH?: string
-  readonly VITE_ROOM_JOIN_METHOD?: string
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
-
 declare global {
+  interface ImportMetaEnv {
+    readonly VITE_KAKAO_JS_KEY?: string
+    readonly VITE_GOOGLE_CLIENT_ID?: string
+    readonly VITE_API_URL?: string
+    readonly VITE_API_BASE_URL?: string
+    readonly VITE_SOCKET_URL?: string
+    readonly VITE_UBER_CLIENT_ID?: string
+    readonly VITE_MY_ROOMS_PATH?: string
+    readonly VITE_ROOM_DETAIL_PATH?: string
+    readonly VITE_ROOM_LEAVE_PATH?: string
+    readonly VITE_ROOM_LEAVE_METHOD?: string
+    readonly VITE_ROOM_JOIN_PATH?: string
+    readonly VITE_ROOM_JOIN_METHOD?: string
+    readonly VITE_WALLET_RECEIPT_OCR_PATH?: string
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv
+  }
+
   interface Window {
-    kakao?: any
+    kakao?: unknown
   }
 }
 

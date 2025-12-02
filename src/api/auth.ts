@@ -3,26 +3,33 @@ import { apiClient } from './client'
 export interface LoginResponse {
   user: {
     id: string
-    loginId: string
-    name: string | null
-    email: string | null
-    phone: string | null
-    gender: string | null
-    birthDate: string | null
+    loginId?: string
+    name?: string | null
+    email?: string | null
+    nickname?: string | null
+    phone?: string | null
+    gender?: string | null
+    birthDate?: string | null
     createdAt: string
   }
-  accessToken: string
-  refreshToken: string
-  accessTokenExpiresAt: string | null
-  refreshTokenExpiresAt: string | null
+  accessToken?: string
+  refreshToken?: string
+  token?: string
+  accessTokenExpiresAt?: string | null
+  refreshTokenExpiresAt?: string | null
+  message?: string
 }
 
 export async function login(loginId: string, password: string) {
   const res = await apiClient.post<LoginResponse>('/api/auth/login', {
     loginId,
-    password,
+    password
   })
-  return res.data
+  // Backend returns `token`; normalize to `accessToken` for the app to store.
+  return {
+    ...res.data,
+    accessToken: res.data.accessToken ?? res.data.token,
+  }
 }
 
 export interface SignUpPayload {
@@ -37,13 +44,31 @@ export interface SignUpPayload {
 }
 
 export async function signUp(payload: SignUpPayload) {
-  const res = await apiClient.post<LoginResponse>('/api/auth/signup', payload)
+  const res = await apiClient.post<LoginResponse>('/api/auth/signup', {
+    loginId: payload.loginId,
+    password: payload.password,
+    name: payload.name,
+    gender: payload.gender,
+    phone: payload.phone,
+    birthDate: payload.birthDate,
+    smsConsent: payload.smsConsent,
+    termsConsent: payload.termsConsent
+  })
   return res.data
 }
 
 export async function fetchMe() {
-  const res = await apiClient.get<{ me: LoginResponse['user'] }>('/api/me')
-  return res.data.me
+  try {
+    const res = await apiClient.get<{ me: LoginResponse['user'] }>('/api/me')
+    return res.data.me
+  } catch (error: any) {
+    // 일부 환경에서 /api/me가 없을 수 있어 /api/auth/me로 폴백
+    if (error?.response?.status === 404) {
+      const res = await apiClient.get<{ me: LoginResponse['user'] }>('/api/auth/me')
+      return res.data.me
+    }
+    throw error
+  }
 }
 
 export type UpdateProfilePayload = Partial<Pick<SignUpPayload, 'name' | 'phone' | 'gender' | 'birthDate'>>

@@ -1,6 +1,7 @@
 import { reactive } from 'vue';
 import type { NotificationItem } from '@/services/notificationService';
 import { fetchNotifications } from '@/services/notificationService';
+import axios from 'axios';
 
 const state = reactive({
   notifications: [] as NotificationItem[],
@@ -28,6 +29,13 @@ const pushNotifications = (items: NotificationItem[]) => {
 export const useNotificationStore = () => state;
 
 export const fetchNotificationFeed = async () => {
+  const token =
+    (typeof window !== 'undefined' && (localStorage.getItem('gogotaxi_token') || localStorage.getItem('auth_token'))) ||
+    null;
+  if (!token) {
+    // 로그인 이전에는 알림을 요청하지 않음
+    return;
+  }
   const items = await fetchNotifications();
   pushNotifications(items.sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
   if (!state.hasInitialLoad) {
@@ -42,9 +50,17 @@ export const startNotificationPolling = (interval = 20000) => {
     try {
       await fetchNotificationFeed();
     } catch (error) {
+      // 토큰 만료/없음 등으로 401이면 폴링을 중단
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401) {
+        stopNotificationPolling();
+        return;
+      }
       console.warn('알림을 불러오지 못했습니다.', error);
     } finally {
-      state.pollingTimer = window.setTimeout(loop, interval);
+      if (state.isPolling) {
+        state.pollingTimer = window.setTimeout(loop, interval);
+      }
     }
   };
   loop();

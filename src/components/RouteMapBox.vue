@@ -38,7 +38,7 @@ let resizeHandler: (() => void) | null = null
 function setError(message: string, detail?: unknown) {
   ready.value = false
   errorMessage.value = message
-  // eslint-disable-next-line no-console
+   
   console.error('[RouteMapBox]', message, detail)
 }
 
