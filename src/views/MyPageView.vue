@@ -49,6 +49,10 @@
             <span class="menu-label">{{ labels.notice }}</span>
             <span class="menu-arrow" aria-hidden="true">&rsaquo;</span>
           </button>
+          <button type="button" class="menu-item" @click="goTo('receipt')">
+            <span class="menu-label">{{ labels.receipt }}</span>
+            <span class="menu-arrow" aria-hidden="true">&rsaquo;</span>
+          </button>
         </nav>
       </section>
     </div>
@@ -72,6 +76,7 @@ const labels = {
   history: "\uC774\uC6A9 \uAE30\uB85D",
   payment: "\uACB0\uC81C \uC218\uB2E8 \uAD00\uB9AC",
   notice: "\uACF5\uC9C0\uC0AC\uD56D",
+  receipt: "\uC601\uC218\uC99D \uC778\uC790\uAE30",
   kokoPay: "\uAF2C\uAF2C\uD398\uC774",
   kokoPayDescription: "\uD604\uC7AC \uBCF4\uC720 \uAE08\uC561",
   kokoPayBrand: "pay",
@@ -130,6 +135,7 @@ const routeNameMap: Record<string, string> = {
   history: "History",
   payment: "payment-methods",
   notice: "notice",
+  receipt: "receipt-scan",
 };
 
 const goTo = (page: string) => {

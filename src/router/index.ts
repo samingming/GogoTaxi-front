@@ -83,6 +83,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/receipt-scan',
+    name: 'receipt-scan',
+    component: () => import('@/views/ReceiptScanView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/notice/:id',
     name: 'notice-detail',
     component: () => import('@/views/NoticeDetailView.vue'),
