@@ -65,32 +65,14 @@
             <p class="fare-summary__label">
               내 요금 <span class="fare-summary__count">({{ participantCount }}명)</span>
             </p>
-            <strong>{{ formatFare(perPersonFare) }}</strong>
+            <strong>{{ formatFareLabel(perPersonFare) }}</strong>
           </div>
           <div class="fare-summary__item">
             <p class="fare-summary__label">전체 요금</p>
-            <strong>{{ formatFare(room.fare) }}</strong>
+            <strong>{{ formatFareLabel(room?.fare) }}</strong>
           </div>
         </div>
         <p class="fare-summary__hint">참여 인원에 맞춰 n분의 1로 자동 계산돼요.</p>
-        <div v-if="isHost" class="fare-ocr">
-          <div class="fare-ocr__header">
-            <p class="fare-ocr__title">예상 금액 캡처 인식</p>
-            <small class="fare-ocr__hint">Uber 화면 캡처를 올리면 Gemini가 금액을 읽어요.</small>
-          </div>
-          <div class="fare-ocr__controls">
-            <label class="fare-ocr__upload">
-              이미지 선택
-              <input type="file" accept="image/*" @change="handleFareImage" />
-            </label>
-            <span v-if="fareScanFile" class="fare-ocr__file">{{ fareScanFile }}</span>
-          </div>
-          <p v-if="fareScanBusy" class="fare-ocr__status">금액 인식 중이에요...</p>
-          <p v-else-if="fareScanAmount" class="fare-ocr__status fare-ocr__status--success">
-            인식된 금액 {{ fareScanCurrency }} {{ fareScanAmount?.toLocaleString('ko-KR') }} 적용됨
-          </p>
-          <p v-else-if="fareScanError" class="fare-ocr__status fare-ocr__status--error">{{ fareScanError }}</p>
-        </div>
       </article>
 
       <article class="room-panel room-panel--status">
@@ -177,8 +159,6 @@ import {
   type RideStage,
   type RideState,
 } from '@/api/ride'
-import { extractAmountFromReceipt } from '@/services/walletService'
-
 const route = useRoute()
 const router = useRouter()
 const {
@@ -216,12 +196,6 @@ const rideError = ref('')
 const rideRequesting = ref(false)
 const ridePolling = ref<ReturnType<typeof setInterval> | null>(null)
 const ridePollingBusy = ref(false)
-const fareScanBusy = ref(false)
-const fareScanError = ref('')
-const fareScanFile = ref('')
-const fareScanCurrency = ref('KRW')
-const fareScanAmount = ref<number | null>(null)
-
 const currentUserId = computed(() => getCurrentUser()?.id ?? '')
 const hostParticipant = computed(() => {
   const labeledHost = participantsRaw.value.find(mate =>
@@ -313,9 +287,12 @@ async function loadRoomDetail(id: string) {
   detailError.value = ''
   try {
     const { room: nextRoom, participants: participantList } = await fetchRoomDetail(id)
-    roomDetail.value = nextRoom
+    const snapshotFare = membership.value?.roomSnapshot?.fare
+    const mergedRoom =
+      snapshotFare != null && nextRoom.fare == null ? { ...nextRoom, fare: snapshotFare } : nextRoom
+    roomDetail.value = mergedRoom
     participantsRaw.value = participantList
-    syncRoomSnapshot(id, nextRoom)
+    syncRoomSnapshot(id, mergedRoom)
   } catch (error) {
     detailError.value = resolveErrorMessage(error, '방 정보를 불러오지 못했어요.')
     participantsRaw.value = []
@@ -518,49 +495,6 @@ async function updateRideProgress(stage: RideStage) {
   }
 }
 
-async function handleFareImage(event: Event) {
-  const input = event.target as HTMLInputElement | null
-  const file = input?.files?.[0]
-  if (!file) return
-
-  fareScanFile.value = file.name
-  fareScanError.value = ''
-  fareScanAmount.value = null
-  fareScanBusy.value = true
-
-  try {
-    const result = await extractAmountFromReceipt(file)
-    const amount =
-      typeof result?.amount === 'number' && Number.isFinite(result.amount)
-        ? Math.round(result.amount)
-        : null
-
-    if (amount) {
-      fareScanAmount.value = amount
-      fareScanCurrency.value = (result?.currency || fareScanCurrency.value || 'KRW').toUpperCase()
-      applyRecognizedFare(amount)
-    } else {
-      fareScanError.value =
-        result?.reason || '예상 금액을 읽지 못했어요. 이미지가 선명한지 확인해 주세요.'
-    }
-  } catch (error) {
-    console.error('Failed to extract fare amount', error)
-    fareScanError.value = '예상 금액 인식에 실패했어요. 잠시 후 다시 시도해 주세요.'
-  } finally {
-    fareScanBusy.value = false
-    if (input) input.value = ''
-  }
-}
-
-function applyRecognizedFare(amount: number) {
-  if (!roomId.value) return
-  const baseRoom = roomDetail.value ?? membership.value?.roomSnapshot ?? null
-  if (!baseRoom) return
-  const nextRoom: RoomPreview = { ...baseRoom, fare: amount }
-  roomDetail.value = nextRoom
-  syncRoomSnapshot(roomId.value, nextRoom)
-}
-
 function toInitials(source?: string, fallback = 'ME') {
   if (!source) return fallback
   const trimmed = source.trim()
@@ -693,8 +627,8 @@ const showTaxiInfo = computed(() =>
   ['driver_assigned', 'arriving', 'aboard', 'success'].includes(statusKey.value) && currentTaxi.value,
 )
 
-function formatFare(amount?: number) {
-  if (amount == null) return '예정 요금'
+function formatFareLabel(amount?: number | null) {
+  if (amount == null) return '요금 미정'
   return `₩${amount.toLocaleString('ko-KR')}`
 }
 
@@ -907,6 +841,43 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.fare-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 20px;
+}
+
+.fare-summary__item {
+  display: grid;
+  gap: 6px;
+}
+
+.fare-summary__label {
+  margin: 0;
+  font-size: 13px;
+  color: #a16207;
+}
+
+.fare-summary__count {
+  font-size: 12px;
+  color: #c2410c;
+  margin-left: 6px;
+}
+
+.fare-summary__item strong {
+  font-size: 22px;
+  color: #7c2d12;
+}
+
+.fare-summary__hint {
+  margin: 0;
+  font-size: 13px;
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.18);
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
 .route-map-wrapper {
   margin-top: 18px;
 }
@@ -973,43 +944,6 @@ onBeforeUnmount(() => {
   margin-left: 8px;
   font-size: 12px;
   color: #b45309;
-}
-
-.fare-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 20px;
-}
-
-.fare-summary__item {
-  display: grid;
-  gap: 6px;
-}
-
-.fare-summary__label {
-  margin: 0;
-  font-size: 13px;
-  color: #a16207;
-}
-
-.fare-summary__count {
-  font-size: 12px;
-  color: #c2410c;
-  margin-left: 6px;
-}
-
-.fare-summary__item strong {
-  font-size: 22px;
-  color: #7c2d12;
-}
-
-.fare-summary__hint {
-  margin: 0;
-  font-size: 13px;
-  color: #92400e;
-  background: rgba(251, 191, 36, 0.18);
-  padding: 10px 12px;
-  border-radius: 14px;
 }
 
 .status-current {
@@ -1232,52 +1166,6 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: #9ca3af;
 }
-
-.fare-ocr {
-  border: 1px dashed rgba(234, 179, 8, 0.6);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(254, 249, 195, 0.35);
-  display: grid;
-  gap: 8px;
-}
-
-.fare-ocr__controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.fare-ocr__upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(124, 45, 18, 0.2);
-  background: #fbbf24;
-  color: #7c2d12;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 6px 14px rgba(124, 45, 18, 0.08);
-}
-
-.fare-ocr__upload input { display: none; }
-
-.fare-ocr__file {
-  font-size: 13px;
-  color: #92400e;
-  background: #fff7e6;
-  padding: 7px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(124, 45, 18, 0.2);
-}
-
-.fare-ocr__status { margin: 0; font-size: 13px; color: #92400e; }
-.fare-ocr__status--success { color: #15803d; }
-.fare-ocr__status--error { color: #b91c1c; }
 
 
 @media (max-width: 720px) {

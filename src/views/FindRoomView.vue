@@ -112,8 +112,8 @@
               <dd>{{ room.time }}</dd>
             </div>
           </dl>
-          <footer class="room-card__tags">
-            <span v-for="tag in room.tags" :key="tag">#{{ tag }}</span>
+          <footer v-if="sanitizeTags(room.tags).length" class="room-card__tags">
+            <span v-for="tag in sanitizeTags(room.tags)" :key="tag">#{{ tag }}</span>
           </footer>
           <transition name="room-detail">
             <section
@@ -143,8 +143,8 @@
                   <dd>{{ room.filled }} / {{ room.capacity }}</dd>
                 </div>
               </dl>
-              <footer class="room-detail__tags">
-                <span v-for="tag in room.tags" :key="tag">#{{ tag }}</span>
+              <footer v-if="sanitizeTags(room.tags).length" class="room-detail__tags">
+                <span v-for="tag in sanitizeTags(room.tags)" :key="tag">#{{ tag }}</span>
               </footer>
               <button type="button" class="room-detail__cta" @click.stop="joinRoom(room)">
                 방 들어가기
@@ -512,6 +512,17 @@ const sheetStyle = computed(() =>
       : { height: 'auto' }
     : { height: `${(sheetHeight.value / 100) * baseHeight.value}px` },
 )
+const hiddenTagKeywords = ['결제', '예상 결제', '매칭 우선', '우선순위']
+
+function sanitizeTags(tags: RoomPreview['tags']) {
+  if (!Array.isArray(tags)) return []
+  return tags
+    .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+    .filter(
+      tag => tag && !hiddenTagKeywords.some(keyword => tag.includes(keyword)),
+    )
+}
+
 const sheetPixelHeight = computed(() => {
   if (isCollapsed.value) {
     if (collapsedSheetHeight.value) {
