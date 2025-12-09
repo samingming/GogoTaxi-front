@@ -638,23 +638,76 @@ const submitPassword = () => {
 }
 
 .payment-wrapper {
-  min-height: 100vh;
-  background: #3a2e20;
-  padding: 2rem 1.25rem 4rem;
+  min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
+  background: #fff7e1;
+  padding: clamp(28px, 6vw, 60px) clamp(18px, 5vw, 54px) clamp(28px, 5vh, 48px);
   display: flex;
   justify-content: center;
   font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+  color: #3b2600;
 }
 
 .payment-container {
-  width: min(640px, 100%);
+  width: min(720px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 24px;
+}
+
+.payment-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  justify-items: center;
+}
+
+.payment-title {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 28px);
+  font-weight: 800;
+  color: #2b1400;
+}
+
+.header-spacer {
+  width: 24px;
+  height: 24px;
+  display: block;
+  justify-self: end;
+}
+
+.back-button {
+  border: none;
+  background: transparent;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  justify-self: start;
+}
+
+.back-button:focus-visible {
+  outline: 3px solid rgba(203, 128, 38, 0.4);
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.back-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.payment-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .password-section {
   background: #ffffff;
+  border: 1px solid #f3d193;
   border-radius: 24px;
   padding: 1.2rem 1.5rem;
   display: flex;
@@ -666,12 +719,13 @@ const submitPassword = () => {
 .password-copy h2 {
   margin: 0;
   font-size: 1.05rem;
+  color: #2b1400;
 }
 
 .password-description {
   margin: 0.35rem 0 0;
   font-size: 0.9rem;
-  color: #6a6a70;
+  color: #a16207;
 }
 
 .password-actions {
@@ -683,26 +737,28 @@ const submitPassword = () => {
 .password-status {
   margin: 0;
   font-size: 0.9rem;
-  color: #3c3c42;
+  color: #a16207;
+  font-weight: 600;
 }
 
 .password-manage-button {
-  border: none;
+  border: 1px solid rgba(250, 204, 21, 0.45);
   border-radius: 999px;
-  background: linear-gradient(135deg, #ff9c8b 0%, #ff775f 100%);
-  color: #ffffff;
-  padding: 0.55rem 1.5rem;
-  font-weight: 600;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
+  padding: 0.65rem 1.5rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.18s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .password-manage-button:hover {
-  transform: translateY(-1px);
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .password-manage-button:focus-visible {
-  outline: 2px solid rgba(255, 119, 95, 0.4);
+  outline: 2px solid rgba(250, 204, 21, 0.5);
   outline-offset: 2px;
 }
 
@@ -721,67 +777,23 @@ const submitPassword = () => {
   flex-direction: column;
   gap: 0.35rem;
   font-size: 0.9rem;
-  color: #4a4a50;
+  color: #4a2c08;
 }
 
 .password-field input {
   border-radius: 12px;
-  border: 1px solid #d7d7dd;
+  border: 1px solid #f3d193;
   padding: 0.75rem;
   font-size: 1.05rem;
   text-align: center;
   letter-spacing: 0.35em;
-}
-
-.payment-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.payment-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: #ffffff;
-}
-
-.back-button {
-  border: none;
-  background: transparent;
-  padding: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.back-button:focus-visible {
-  outline: 3px solid rgba(203, 128, 38, 0.4);
-  border-radius: 8px;
-  outline-offset: 2px;
-}
-
-.back-icon {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
-.payment-title {
-  flex: 1;
-  text-align: center;
-  margin: 0;
-  font-size: 1.2rem;
-}
-
-.header-spacer {
-  width: 40px;
-  height: 40px;
+  background: #fffdf6;
+  color: #3b2600;
 }
 
 .method-section {
-  background: #eeeff2;
+  background: #ffffff;
+  border: 1px solid #f3d193;
   border-radius: 24px;
   padding: 1.4rem;
   display: flex;
@@ -792,12 +804,13 @@ const submitPassword = () => {
 .section-heading h2 {
   margin: 0;
   font-size: 1.05rem;
+  color: #2b1400;
 }
 
 .section-description {
   margin: 0.2rem 0 0;
   font-size: 0.88rem;
-  color: #6a6a70;
+  color: #a16207;
 }
 
 .method-list {
@@ -811,6 +824,7 @@ const submitPassword = () => {
 
 .method-item {
   background: #ffffff;
+  border: 1px solid #f3d193;
   border-radius: 18px;
   padding: 0.9rem 1rem;
   display: flex;
@@ -829,20 +843,20 @@ const submitPassword = () => {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #4f5661, #30353d);
-  color: #ffffff;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
   font-weight: 700;
   display: grid;
   place-items: center;
 }
 
 .method-icon[data-brand='kb'] {
-  background: linear-gradient(135deg, #b58d4d, #896531);
+  background: rgba(250, 204, 21, 0.28);
 }
 
 .method-icon[data-brand='kakao'] {
-  background: linear-gradient(135deg, #ffc545, #fba600);
-  color: #222;
+  background: rgba(250, 204, 21, 0.4);
+  color: #2b1400;
 }
 
 .method-texts {
@@ -853,20 +867,20 @@ const submitPassword = () => {
 .method-name {
   margin: 0;
   font-weight: 600;
-  color: #2b2b30;
+  color: #3b2600;
 }
 
 .method-description {
   margin: 0;
   font-size: 0.85rem;
-  color: #6a6a70;
+  color: #a16207;
 }
 
 .remove-button {
   border: none;
   background: none;
   font-size: 1.4rem;
-  color: #b4b4bc;
+  color: #a16207;
   cursor: pointer;
 }
 
@@ -875,9 +889,10 @@ const submitPassword = () => {
   padding: 0.8rem;
   background: #ffffff;
   border-radius: 16px;
-  border: 1px dashed #bebfcc;
+  border: 1px dashed #f3d193;
   text-align: center;
-  color: #666672;
+  color: #a16207;
+  font-weight: 600;
 }
 
 .section-footer {
@@ -895,41 +910,50 @@ const submitPassword = () => {
 }
 
 .add-button {
-  border: none;
+  border: 1px solid rgba(250, 204, 21, 0.45);
   border-radius: 16px;
-  background: #fdd651;
+  background: rgba(250, 204, 21, 0.18);
   padding: 0.75rem 1.05rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  color: #a16207;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.add-button:hover {
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .add-icon {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(250, 204, 21, 0.25);
   display: grid;
   place-items: center;
 }
 
 .add-hint {
-  background: #2b2b30;
-  color: #ffffff;
+  background: #fef3c7;
+  color: #92400e;
   padding: 0.45rem 0.8rem;
   border-radius: 999px;
   font-size: 0.78rem;
+  border: 1px solid #f3d193;
 }
 
 .manage-button {
-  border: none;
-  background: none;
-  color: #6a6a70;
-  font-weight: 600;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: transparent;
+  color: #a16207;
+  font-weight: 700;
   cursor: pointer;
-  text-decoration: underline;
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
 }
 
 .modal-backdrop {
@@ -946,6 +970,7 @@ const submitPassword = () => {
 .modal-card {
   width: min(420px, 100%);
   background: #ffffff;
+  border: 1px solid #f3d193;
   border-radius: 22px;
   padding: 1.6rem;
   display: flex;
@@ -957,19 +982,19 @@ const submitPassword = () => {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #262628;
+  color: #2b1400;
 }
 
 .modal-message {
   margin: 0;
-  color: #4a4a4f;
+  color: #3b2600;
 }
 
 .modal-highlight {
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #2b2b30;
+  color: #a16207;
 }
 
 .modal-actions {
@@ -979,31 +1004,36 @@ const submitPassword = () => {
 
 .modal-button {
   flex: 1;
-  border: none;
+  border: 1px solid rgba(250, 204, 21, 0.45);
   border-radius: 14px;
   padding: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .modal-button.is-secondary {
-  background: #f1f1f4;
-  color: #2b2b30;
+  background: #fffdf6;
+  color: #7c2d12;
 }
 
 .modal-button.is-primary {
-  background: #f26840;
-  color: #ffffff;
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .password-input {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid #d7d7dd;
+  border: 1px solid #f3d193;
   padding: 0.8rem;
   font-size: 1.1rem;
   text-align: center;
   letter-spacing: 0.4em;
+  background: #fffdf6;
+  color: #3b2600;
 }
 
 .form-error {
@@ -1026,18 +1056,19 @@ const submitPassword = () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #f3f6ff;
+  background: #fff7e1;
   padding: 0.6rem 0.8rem;
   border-radius: 12px;
-  color: #27408f;
+  color: #a16207;
+  border: 1px solid #f3d193;
 }
 
 .info-banner span {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #27408f;
-  color: #ffffff;
+  background: rgba(250, 204, 21, 0.3);
+  color: #92400e;
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -1054,14 +1085,16 @@ const submitPassword = () => {
   flex-direction: column;
   gap: 0.4rem;
   font-size: 0.9rem;
-  color: #3c3c42;
+  color: #3b2600;
 }
 
 .form-field input {
   border-radius: 12px;
-  border: 1px solid #d7d7dd;
+  border: 1px solid #f3d193;
   padding: 0.75rem;
   font-size: 0.95rem;
+  background: #fffdf6;
+  color: #3b2600;
 }
 
 .form-row {
@@ -1074,7 +1107,7 @@ const submitPassword = () => {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.9rem;
-  color: #4a4a4f;
+  color: #3b2600;
 }
 
 .card-form-footer {
@@ -1084,26 +1117,29 @@ const submitPassword = () => {
 
 .card-submit-button {
   flex: 1;
-  border: none;
+  border: 1px solid rgba(250, 204, 21, 0.45);
   border-radius: 14px;
   padding: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .card-submit-button.is-secondary {
-  background: #f1f1f4;
-  color: #2b2b30;
+  background: #fffdf6;
+  color: #7c2d12;
 }
 
 .card-submit-button:is(:not(.is-secondary)) {
-  background: #2f63ff;
-  color: #ffffff;
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .card-submit-button:disabled {
-  background: #d7d7dd;
-  color: #9d9daa;
+  background: #f3d193;
+  color: #a16207;
   cursor: not-allowed;
 }
 
