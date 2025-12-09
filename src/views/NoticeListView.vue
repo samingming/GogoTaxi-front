@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="notice">
     <header class="notice__header">
       <div class="notice__header-top">
@@ -11,12 +11,9 @@
     </header>
 
     <div class="notice__layout">
-      <aside class="notice__list" aria-label="공지 목록">
+      <aside class="notice__list" aria-label="공지사항 목록">
         <article v-for="notice in sortedNotices" :key="notice.id" class="notice-card">
           <div class="notice-card__header">
-            <span class="notice-card__badge" :class="`badge--${notice.type}`">
-              {{ badgeLabel(notice.type) }}
-            </span>
             <time :datetime="notice.date">{{ formatDate(notice.date) }}</time>
           </div>
           <h2>{{ notice.title }}</h2>
@@ -59,7 +56,7 @@ function badgeLabel(type: NoticeType) {
     case 'maintenance':
       return '점검'
     default:
-      return '안내'
+      return '공지'
   }
 }
 
@@ -71,36 +68,30 @@ function formatDate(dateISO: string) {
 
 <style scoped>
 .notice {
-  padding: 2rem 1.25rem calc(3rem + var(--safe-bottom));
-  background: #3a2e20;
-  min-height: max(
-    0px,
-    calc(100dvh - var(--header-h) - var(--tab-h) - var(--safe-bottom) - var(--browser-ui-bottom))
-  );
+  padding: clamp(20px, 5vw, 40px) clamp(16px, 5vw, 32px) clamp(20px, 5vh, 36px);
+  background: #fff7e1;
+  color: #3b2600;
+  min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
   box-sizing: border-box;
 }
 .notice__header {
-  max-width: 960px;
-  margin: 0 auto 1.5rem;
+  width: 100%;
+  margin: 0 0 14px;
   text-align: center;
-  color: #f8f1e4;
+  color: #3b2600;
 }
 .notice__header-top {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .notice__header h1 {
   margin: 0;
   font-size: clamp(24px, 5vw, 28px);
-  font-weight: 700;
-}
-.notice__header p {
-  margin: 0;
-  color: rgba(255, 244, 220, 0.78);
-  font-size: clamp(14px, 3vw, 16px);
+  font-weight: 800;
+  color: #2b1400;
 }
 .back-button {
   border: none;
@@ -110,117 +101,81 @@ function formatDate(dateISO: string) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease;
-}
-.back-button:hover {
-  transform: translateY(-2px);
 }
 .back-button:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.5);
+  outline: 3px solid rgba(203, 128, 38, 0.4);
+  border-radius: 8px;
   outline-offset: 2px;
 }
 .back-icon {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 .header-spacer {
-  width: 40px;
-  height: 40px;
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 .notice__layout {
-  max-width: 860px;
+  width: min(720px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: clamp(16px, 3vw, 24px);
+  gap: 14px;
+  justify-items: center;
 }
 .notice__list {
   display: grid;
-  gap: clamp(14px, 2.6vw, 20px);
+  gap: 12px;
+  width: 100%;
 }
 .notice-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 14px;
-  padding: clamp(18px, 4vw, 22px);
-  border-radius: 26px;
-  border: 1px solid rgba(120, 92, 68, 0.12);
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 16px 34px rgba(20, 12, 6, 0.12);
-  min-height: 168px;
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border 0.22s ease;
-}
-.notice-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 26px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  gap: 10px;
+  padding: clamp(14px, 4vw, 18px);
+  border-radius: 20px;
+  border: 1px solid #f3d193;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(255, 202, 104, 0.18);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  width: 100%;
 }
 .notice-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  color: #85766a;
-}
-.notice-card__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 70px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
-}
-.badge--update {
-  background: #fdd651;
-  color: #2f1c00;
-}
-.badge--maintenance {
-  background: #fdd651;
-  color: #2f1c00;
-}
-.badge--info {
-  background: linear-gradient(135deg, #10b981, #34d399);
+  color: #a16207;
 }
 .notice-card h2 {
   margin: 0;
-  font-size: 1.2rem;
-  color: #2f241b;
+  font-size: 1.02rem;
+  color: #3b2600;
 }
 .notice-card__action {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 999px;
-  border: none;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   font-size: 13px;
-  font-weight: 600;
-  color: #f7f1e5;
-  background: #3a2e20;
+  font-weight: 700;
+  color: #a16207;
+  background: rgba(250, 204, 21, 0.18);
   cursor: pointer;
-  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease, color 0.14s ease;
 }
 .notice-card__action:hover {
-  transform: translateY(-2px);
-  background: #2c231a;
-  box-shadow: 0 12px 24px rgba(58, 46, 32, 0.4);
-}
-.notice-card__action span {
-  transition: transform 0.2s ease;
-}
-.notice-card__action:hover span {
-  transform: translateX(4px);
+  transform: translateY(-1px);
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 </style>
+
+
+
+
