@@ -182,8 +182,8 @@ const chargeWallet = () => {
     0px,
     calc(100dvh - var(--header-h) - var(--tab-h) - var(--safe-bottom) - var(--browser-ui-bottom))
   );
-  background: #3a2e20;
-  padding: 3.5rem 1.25rem calc(3rem + var(--safe-bottom));
+  background: #fff7e1;
+  padding: clamp(28px, 6vw, 56px) clamp(18px, 5vw, 42px) calc(48px + var(--safe-bottom));
   font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
   display: flex;
   justify-content: center;
@@ -204,7 +204,8 @@ const chargeWallet = () => {
   align-items: center;
   gap: 1.45rem;
   padding: 1.55rem 1.5rem;
-  background: #eeeff2;
+  background: #fffdf6;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: 28px;
 }
 
@@ -314,11 +315,12 @@ const chargeWallet = () => {
 
 .wallet-link {
   border: none;
-  background: transparent;
+  background: #fdd651;
   font-size: 0.98rem;
   font-weight: 700;
   color: #2b2113;
   padding: 0;
+  border-radius: 0;
   cursor: pointer;
 }
 
@@ -366,7 +368,8 @@ const chargeWallet = () => {
 }
 
 .menu-block {
-  background: #eeeff2;
+  background: #fffdf6;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: 28px;
   padding: 1.35rem 1.25rem 1.6rem;
   display: flex;
@@ -391,14 +394,15 @@ const chargeWallet = () => {
   width: 100%;
   border: none;
   border-radius: 18px;
-  background: #fdd651;
+  background: #fff7e1;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   padding: 0.95rem 1.1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 1rem;
   font-weight: 600;
-  color: #2f2f33;
+  color: #3b2600;
   cursor: pointer;
   transition: transform 0.18s ease;
 }

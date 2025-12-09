@@ -83,7 +83,7 @@ const contentStyle = computed(() => {
 <style>
 :root {
   --header-h: 56px;
-  --tab-h: 64px;
+  --tab-h: 72px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --browser-ui-bottom: 0px;

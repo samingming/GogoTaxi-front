@@ -258,7 +258,7 @@ function goLatestNotice() {
   width: 100%;
   /* ⬇️ 갈색 여백 줄이기: 최소 높이/하단 패딩 축소 */
   min-height: clamp(640px, 92dvh, 1100px);
-  padding: clamp(36px, 6vh, 84px) 0 clamp(16px, 4vh, 36px);
+  padding: clamp(24px, 4vh, 60px) 0 clamp(16px, 4vh, 36px);
   overflow: hidden;
   background: #fff7e1;
   background-size: cover;
@@ -393,7 +393,7 @@ function goLatestNotice() {
 
 .notice-banner {
   width: min(92%, 980px);
-  margin: clamp(-48px, -6vh, -24px) auto clamp(10px, 2vh, 20px);
+  margin: clamp(-64px, -8vh, -28px) auto clamp(6px, 1.5vh, 16px);
   border-radius: 999px;
   border: 1px solid rgba(250,204,21,.4);
   background: rgba(255,255,255,.8);
@@ -418,8 +418,8 @@ function goLatestNotice() {
   color:#a16207;
 }
 .notice-banner__label {
-  display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px;
-  background: rgba(251, 191, 36, 0.85); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#4a1d05;
+  display:inline-flex; align-items:center; padding:6px 16px; border-radius:999px;
+  background: rgba(251, 191, 36, 0.9); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#4a1d05;
 }
 .notice-banner__marquee { position: relative; flex:1; overflow: hidden; height:20px; }
 .notice-banner__track {
@@ -428,8 +428,8 @@ function goLatestNotice() {
 }
 
 @media (min-width: 1024px) {
-  .hero { padding-top: clamp(72px, 9vh, 124px); }
-  .notice-banner { margin: clamp(-32px, -4vh, -18px) auto clamp(14px, 2.2vh, 26px); }
+  .hero { padding-top: clamp(36px, 6vh, 96px); }
+  .notice-banner { margin: clamp(-48px, -7vh, -20px) auto clamp(10px, 1.8vh, 22px); }
   .map-board { margin-bottom: clamp(20px, 3vh, 36px); }
   .gateway { margin: clamp(16px, 2.6vh, 32px) auto 0; }
 }

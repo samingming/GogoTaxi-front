@@ -130,12 +130,12 @@ function btnClass(name: string) {
   right: 0;
   bottom: 0;
   height: var(--tab-h);
-  padding: 0 clamp(8px, 4vw, 18px) var(--safe-bottom);
+  padding: 8px clamp(8px, 4vw, 18px) calc(8px + var(--safe-bottom));
 
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: center;
+  align-items: stretch;
   background: linear-gradient(135deg, #fff8f0 0%, #f1f5ff 100%);
   border-top: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 -12px 26px rgba(40, 30, 20, 0.16);
@@ -151,11 +151,12 @@ function btnClass(name: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
   color: var(--tab-color, #666);
   transition: color 0.18s ease, filter 0.18s ease;
   position: relative;
+  height: 100%;
 }
 .tab-btn .icon {
   display: flex;

@@ -1,13 +1,9 @@
 ﻿<template>
   <section class="create-room">
     <div class="create-room__container">
-      <header class="page-header">
-        <div>
-          <p class="page-header__eyebrow">방 만들기</p>
-          <p class="page-header__description page-header__description--inline">
-            조건을 입력하면 꼬꼬택이 함께 탈 동승자를 찾아드려요.
-          </p>
-        </div>
+      <header class="create-room__hero">
+        <p class="create-room__eyebrow">꼬꼬택 방 생성</p>
+        <h1>방 만들기</h1>
       </header>
 
       <form class="form" @submit.prevent="submitForm">
@@ -40,7 +36,15 @@
                 @click="openMapPicker('departure')"
                 aria-label="지도에서 출발지 선택"
               >
-                📍
+                <span class="pin-button__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <path
+                      d="M12 21c-4.8-5.4-7.2-9.3-7.2-12.2A7.2 7.2 0 1 1 19.2 8.8c0 2.9-2.4 6.8-7.2 12.2Z"
+                      fill="currentColor"
+                    />
+                    <circle cx="12" cy="9" r="2.5" fill="#fff7e6" />
+                  </svg>
+                </span>
               </button>
             </div>
             <p v-if="isSearching.departure" class="hint">검색 중...</p>
@@ -75,7 +79,15 @@
                 @click="openMapPicker('arrival')"
                 aria-label="지도에서 도착지 선택"
               >
-                📍
+                <span class="pin-button__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <path
+                      d="M12 21c-4.8-5.4-7.2-9.3-7.2-12.2A7.2 7.2 0 1 1 19.2 8.8c0 2.9-2.4 6.8-7.2 12.2Z"
+                      fill="currentColor"
+                    />
+                    <circle cx="12" cy="9" r="2.5" fill="#fff7e6" />
+                  </svg>
+                </span>
               </button>
             </div>
             <p v-if="isSearching.arrival" class="hint">검색 중...</p>
@@ -108,59 +120,17 @@
           </label>
         </div>
 
-        <fieldset class="field priority-field">
-          <legend>매칭 우선순위</legend>
-          <div class="priority-toggle">
-            <button
-              v-for="option in priorityOptions"
-              :key="option.value"
-              type="button"
-              class="priority-chip"
-              :class="{ 'is-active': form.priority === option.value }"
-              @click="form.priority = option.value"
-            >
-              <span>{{ option.label }}</span>
-            </button>
-          </div>
-        </fieldset>
-
-        <div class="form-grid">
-          <label class="field field--payments">
-            <span>결제수단</span>
-            <div v-if="availablePaymentMethods.length" class="payment-carousel">
-              <div
-                class="payment-carousel__track"
-                role="radiogroup"
-                aria-label="등록된 결제수단"
-              >
-                <button
-                  v-for="method in availablePaymentMethods"
-                  :key="method.id"
-                  type="button"
-                  class="payment-card"
-                  :class="{ 'is-active': method.id === selectedPaymentMethodId }"
-                  @click="selectPaymentMethod(method.id)"
-                  :aria-pressed="method.id === selectedPaymentMethodId"
-                >
-                  <div class="payment-card__icon" :data-brand="method.brand ?? 'card'">
-                    {{ method.iconText }}
-                  </div>
-                  <div class="payment-card__text">
-                    <p class="payment-card__name">{{ method.label }}</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-            <p v-else class="hint">결제수단을 먼저 등록해 주세요.</p>
-          </label>
-
-          <label class="field">
-            <span>예상 결제 금액</span>
-            <input :value="preview.fare" type="text" readonly />
-            <p class="hint">
-              약 {{ distanceLabel }} · KakaoMap 거리 계산 기준
-            </p>
-          </label>
+        <div class="fare-upload">
+          <FareInfoCard
+            :pending="farePending || recognizedFare === null"
+            :total-fare="recognizedFare ?? undefined"
+            :per-person-fare="null"
+            :allow-upload="true"
+            :upload-action-link="uberDeepLink"
+            upload-action-label="Uber 앱 열기"
+            @fare-recognized="handleFareRecognized"
+            @fare-pending="farePending = true"
+          />
         </div>
 
         <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -185,7 +155,7 @@
           </h3>
           <p>지도나 핀을 드래그해 위치를 조정하세요.</p>
         </header>
-        <div class="map-picker__canvas" ref="mapPickerCanvas"></div>
+        <div class="map-picker__canvas" ref="mapPickerCanvas" style="touch-action: none; overscroll-behavior: none"></div>
         <footer class="map-picker__actions">
           <button type="button" class="ghost-button" @click="closeMapPicker">취소</button>
           <button type="button" class="primary-button" @click="confirmMapPicker">
@@ -208,17 +178,14 @@
 
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch, watchEffect } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TimePicker from '@/components/TimePicker.vue'
+import FareInfoCard from '@/components/FareInfoCard.vue'
 import { loadKakaoMaps, type KakaoNamespace } from '@/services/kakaoMaps'
 import { createRoom, type CreateRoomPayload } from '@/api/rooms'
-import {
-  createPaymentSections,
-  type PaymentMethod as StoredPaymentMethod,
-} from '@/data/paymentMethods'
+import { useRoomMembership } from '@/composables/useRoomMembership'
 
-type Priority = 'time' | 'seats'
 type FieldKind = 'departure' | 'arrival'
 
 type SelectedPlace = {
@@ -258,49 +225,17 @@ function isMinuteOption(value: string): value is MinuteOption {
   return (minuteOptions as readonly string[]).includes(value)
 }
 const router = useRouter()
-
-const availablePaymentMethods: StoredPaymentMethod[] = createPaymentSections().flatMap((section) =>
-  section.items.map((item) => ({
-    ...item,
-    label: item.label.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s{2,}/g, ' ').trim(),
-  })),
-)
-const selectedPaymentMethodId = ref<string>(availablePaymentMethods[0]?.id ?? '')
-
-const priorityOptions = [
-  { value: 'time', label: '시간 우선', description: '' },
-  { value: 'seats', label: '인원 우선', description: '' },
-] satisfies Array<{ value: Priority; label: string; description: string }>
+const { joinRoom: rememberRoom } = useRoomMembership()
 
 const form = reactive({
   title: '',
   departure: null as SelectedPlace | null,
   arrival: null as SelectedPlace | null,
   departureTime: getCurrentSeoulTime(),
-  priority: 'time' as Priority,
-  paymentMethod: '',
 })
 
-const selectPaymentMethod = (id: string) => {
-  selectedPaymentMethodId.value = id
-}
-
-watchEffect(() => {
-  const active = availablePaymentMethods.find(
-    (method) => method.id === selectedPaymentMethodId.value,
-  )
-
-  if (!active) {
-    form.paymentMethod = ''
-    if (availablePaymentMethods[0]) {
-      selectedPaymentMethodId.value = availablePaymentMethods[0].id
-      form.paymentMethod = availablePaymentMethods[0].label
-    }
-    return
-  }
-
-  form.paymentMethod = active.label
-})
+const uberClientId = import.meta.env.VITE_UBER_CLIENT_ID
+const uberDeepLink = computed(() => buildUberDeepLinkFromSelection())
 
 const departureQuery = ref('')
 const arrivalQuery = ref('')
@@ -324,8 +259,8 @@ setTimePickerState(form.departureTime)
 const errorMessage = ref('')
 const successMessage = ref('')
 const isSubmitting = ref(false)
-const estimatedFare = ref(0)
-const estimatedDistanceKm = ref(0)
+const recognizedFare = ref<number | null>(null)
+const farePending = ref(true)
 
 const isValid = computed(() => {
   return (
@@ -342,15 +277,7 @@ const preview = computed(() => ({
   departure: form.departure?.address ?? '출발지',
   arrival: form.arrival?.address ?? '도착지',
   time: form.departureTime ? formatDate(form.departureTime) : '출발 시간',
-  priority: form.priority === 'time' ? '시간 우선' : '인원 우선',
-  paymentMethod: form.paymentMethod,
-  fare: estimatedFare.value ? `${estimatedFare.value.toLocaleString()}원` : '거리 산정 중',
 }))
-
-const distanceLabel = computed(() => {
-  if (!estimatedDistanceKm.value) return '거리 계산 중'
-  return `${estimatedDistanceKm.value.toFixed(1)}km`
-})
 
 function formatShortTime(value: string) {
   const [hourToken, minuteToken] = value.split(':')
@@ -385,7 +312,6 @@ const displayDepartureTime = computed(() => {
 
 let kakaoApi: KakaoNamespace | null = null
 let placesService: kakao.maps.services.Places | null = null
-let polyline: kakao.maps.Polyline | null = null
 let geocoder: kakao.maps.services.Geocoder | null = null
 let mapPickerMap: kakao.maps.Map | null = null
 let mapPickerMarker: kakao.maps.Marker | null = null
@@ -394,9 +320,7 @@ loadKakaoMaps().then((kakao) => {
   if (!kakao) return
   kakaoApi = kakao
   placesService = new kakao.maps.services.Places()
-  polyline = new kakao.maps.Polyline()
   geocoder = new kakao.maps.services.Geocoder()
-  computeDistance()
 })
 
 const searchTimers: Record<FieldKind, ReturnType<typeof setTimeout> | null> = {
@@ -406,6 +330,21 @@ const searchTimers: Record<FieldKind, ReturnType<typeof setTimeout> | null> = {
 const suppressSearch: Record<FieldKind, boolean> = {
   departure: false,
   arrival: false,
+}
+
+function buildUberDeepLinkFromSelection() {
+  if (!form.departure?.position || !form.arrival?.position) return ''
+  const params = new URLSearchParams({
+    action: 'setPickup',
+    'pickup[latitude]': String(form.departure.position.lat),
+    'pickup[longitude]': String(form.departure.position.lng),
+    'dropoff[latitude]': String(form.arrival.position.lat),
+    'dropoff[longitude]': String(form.arrival.position.lng),
+  })
+  if (form.departure.name) params.set('pickup[nickname]', form.departure.name)
+  if (form.arrival.name) params.set('dropoff[nickname]', form.arrival.name)
+  if (uberClientId) params.set('client_id', uberClientId)
+  return `https://m.uber.com/ul/?${params.toString()}`
 }
 
 function isKakaoStatusOk(status: unknown) {
@@ -420,12 +359,6 @@ function isKakaoStatusOk(status: unknown) {
 
 watch(departureQuery, (value) => scheduleSearch('departure', value))
 watch(arrivalQuery, (value) => scheduleSearch('arrival', value))
-
-watch(
-  () => [form.departure, form.arrival],
-  () => computeDistance(),
-  { deep: true },
-)
 
 function scheduleSearch(kind: FieldKind, keyword: string) {
   if (suppressSearch[kind]) {
@@ -487,7 +420,6 @@ function selectPlace(kind: FieldKind, place: SelectedPlace) {
     arrivalSuggestions.value = []
   }
   activeField.value = null
-  computeDistance()
 }
 
 function setActiveField(kind: FieldKind) {
@@ -557,6 +489,11 @@ function closeMapPicker() {
 
 async function setupMapPicker() {
   if (!mapPickerVisible.value || !kakaoApi || !mapPickerCanvas.value) return
+  const canvas = mapPickerCanvas.value
+  canvas.style.touchAction = 'none'
+  canvas.style.overscrollBehavior = 'none'
+  canvas.style.setProperty('-ms-touch-action', 'none')
+  canvas.style.pointerEvents = 'auto'
   const center = new kakaoApi.maps.LatLng(mapPickerPosition.lat, mapPickerPosition.lng)
   const pickerMap = new kakaoApi.maps.Map(mapPickerCanvas.value, {
     center,
@@ -622,6 +559,12 @@ async function confirmMapPicker() {
   closeMapPicker()
 }
 
+function handleFareRecognized(amount: number) {
+  if (typeof amount !== 'number' || Number.isNaN(amount)) return
+  recognizedFare.value = Math.max(0, Math.round(amount))
+  farePending.value = false
+}
+
 function openTimePicker() {
   setTimePickerState(form.departureTime || getCurrentSeoulTime())
   timePickerVisible.value = true
@@ -674,31 +617,6 @@ function reverseGeocode(position: { lat: number; lng: number }) {
   })
 }
 
-function computeDistance() {
-  if (!kakaoApi || !form.departure || !form.arrival || !polyline) {
-    estimatedDistanceKm.value = 0
-    estimatedFare.value = 0
-    return
-  }
-
-  const start = new kakaoApi.maps.LatLng(form.departure.position.lat, form.departure.position.lng)
-  const end = new kakaoApi.maps.LatLng(form.arrival.position.lat, form.arrival.position.lng)
-
-  polyline.setPath([start, end])
-  const meters = polyline.getLength()
-  const km = meters / 1000
-  estimatedDistanceKm.value = km
-  estimatedFare.value = calculateFare(meters)
-}
-
-function calculateFare(meters: number) {
-  if (!meters) return 0
-  const baseFare = 4000
-  const perKm = 1200
-  const km = meters / 1000
-  return Math.round(baseFare + perKm * km)
-}
-
 function formatDate(value: string) {
   const [hourToken, minuteToken] = value.split(':')
   const hours = Number(hourToken)
@@ -716,14 +634,12 @@ function resetForm() {
   form.arrival = null
   form.departureTime = getCurrentSeoulTime()
   setTimePickerState(form.departureTime)
-  form.priority = 'time'
   departureQuery.value = ''
   arrivalQuery.value = ''
-  estimatedFare.value = 0
-  estimatedDistanceKm.value = 0
+  recognizedFare.value = null
+  farePending.value = true
   errorMessage.value = ''
   successMessage.value = ''
-  selectedPaymentMethodId.value = availablePaymentMethods[0]?.id ?? ''
 }
 
 function toLocationPayload(place: SelectedPlace) {
@@ -765,13 +681,9 @@ function buildCreateRoomPayload(): CreateRoomPayload {
   }
   const departureLocation = toLocationPayload(form.departure)
   const arrivalLocation = toLocationPayload(form.arrival)
-  const remainingSeats = form.priority === 'seats' ? 3 : 2
+  const remainingSeats = 2
   const capacity = DEFAULT_ROOM_CAPACITY
   const filled = Math.max(0, capacity - remainingSeats)
-  const tags = [
-    form.priority === 'time' ? '시간 우선' : '인원 우선',
-    form.paymentMethod || '결제수단 미정',
-  ].filter(Boolean)
 
   return {
     title: form.title.trim() || '꼬꼬택과 고고 택시~',
@@ -785,15 +697,10 @@ function buildCreateRoomPayload(): CreateRoomPayload {
     arrivalLng: safeNumber(arrivalLocation.lng ?? arrivalLocation.position?.lng),
     departureTime: buildDepartureTimeIsoString(form.departureTime),
     time: preview.value.time,
-    priority: form.priority,
-    paymentMethod: form.paymentMethod || undefined,
-    tags,
     seats: remainingSeats,
     capacity,
     filled,
-    fare: estimatedFare.value || undefined,
-    estimatedFare: estimatedFare.value || undefined,
-    estimatedDistanceKm: estimatedDistanceKm.value || undefined,
+    fare: recognizedFare.value ?? undefined,
   }
 }
 
@@ -848,6 +755,12 @@ async function submitForm() {
     isSubmitting.value = true
 
     const createdRoom = await createRoom(payload)
+    if (createdRoom && recognizedFare.value != null) {
+      createdRoom.fare = recognizedFare.value
+    }
+    if (createdRoom) {
+      rememberRoom(createdRoom)
+    }
 
     successMessage.value = '방이 생성되었어요! 곧 이동합니다.'
 
@@ -889,14 +802,14 @@ async function submitForm() {
 
 <style scoped>
 .create-room {
-  --color-background: #ffffff;
-  --color-surface: #eeeff2;
-  --color-border: #d7d8de;
-  --color-accent-border: #f4c145;
-  --color-text-strong: #2f1c03;
-  --color-text-muted: #6a5f4d;
+  --color-background: #fff7e1;
+  --color-surface: #fffdf6;
+  --color-border: rgba(234, 179, 8, 0.35);
+  --color-accent-border: rgba(228, 180, 97, 0.6);
+  --color-text-strong: #3b2600;
+  --color-text-muted: #91590b;
   --color-button: #fdd651;
-  --color-button-text: #2f1c03;
+  --color-button-text: #3b2600;
 
   min-height: 100dvh;
   background: var(--color-background);
@@ -914,44 +827,42 @@ async function submitForm() {
   overflow-x: hidden;
 }
 
-.page-header,
-.preview-card,
+.create-room__hero {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-accent-border);
+}
+
+.create-room__hero h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 36px);
+  color: #3b2600;
+}
+.create-room__eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(149, 89, 11, 0.85);
+}
+.create-room__desc,
+.create-room__hint {
+  margin: 0;
+  color: #6b3b00;
+  line-height: 1.5;
+}
+.create-room__hint {
+  font-size: 0.9rem;
+  color: rgba(149, 89, 11, 0.85);
+}
+
 .form,
 fieldset.field,
 .map-picker__panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 32px;
-}
-
-.page-header {
-  padding: clamp(20px, 3vw, 32px);
-}
-
-.page-header__eyebrow {
-  margin: 0;
-  font-size: 0.84rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-}
-
-.page-header h1 {
-  margin: 0.4rem 0 0.6rem;
-  font-size: clamp(1.4rem, 4vw, 2rem);
-}
-
-.page-header__description {
-  margin: 0;
-  color: var(--color-text-muted);
-  line-height: 1.45;
-}
-
-.page-header__description--inline {
-  font-size: 0.85rem;
-  font-weight: 500;
-  white-space: nowrap;
 }
 
 .form {
@@ -977,17 +888,33 @@ fieldset.field,
   position: relative;
 }
 
+.field > span {
+  color: #a16207;
+  font-weight: 600;
+}
+
 .field input,
-.field select {
+.field select,
+.field textarea {
   border-radius: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.45);
   padding: 0.85rem 1rem;
   background: #ffffff;
+  color: #a16207;
+  font-size: 0.92rem;
+  font-family: inherit;
   transition: border 0.2s ease;
 }
 
+.field input::placeholder,
+.field select::placeholder,
+.field textarea::placeholder {
+  color: rgba(161, 98, 7, 0.85);
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: var(--color-button);
 }
@@ -1021,7 +948,7 @@ fieldset.field,
 }
 
 .suggestion-list li button:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(253, 214, 81, 0.15);
 }
 
 .input-with-action {
@@ -1042,24 +969,36 @@ fieldset.field,
   height: 2.3rem;
   border-radius: 50%;
   border: none;
-  background: var(--color-button);
-  color: var(--color-button-text);
+  background: rgba(253, 214, 81, 0.3);
+  color: #b45309;
   font-weight: 600;
   cursor: pointer;
+}
+.pin-button__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.pin-button__icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .time-trigger {
   width: 100%;
   border-radius: 18px;
-  border: 1.5px solid rgba(0, 0, 0, 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #fdfbf4 100%);
+  border: 1.5px solid rgba(234, 179, 8, 0.45);
+  background: #fffdf6;
   padding: 0.85rem 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--color-text-strong);
+  color: #7c2d12;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -1078,149 +1017,6 @@ fieldset.field,
   text-align: center;
 }
 
-fieldset.field {
-  padding: 1.1rem;
-  border-radius: 24px;
-}
-
-.priority-field legend {
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.priority-toggle {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 0.35rem 0.4rem;
-}
-
-.priority-chip {
-  flex: 1 1 0;
-}
-
-.priority-chip {
-  border-radius: 18px;
-  border: 1px solid var(--color-border);
-  padding: 0.75rem 1rem;
-  background: #ffffff;
-  color: var(--color-text-strong);
-  cursor: pointer;
-  text-align: center;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.priority-chip.is-active {
-  background: var(--color-button);
-  border-color: var(--color-accent-border);
-  color: var(--color-button-text);
-}
-
-.field--payments {
-  overflow: hidden;
-  padding-bottom: 0.3rem;
-}
-
-.payment-carousel {
-  --card-padding-inline: clamp(0.9rem, 5vw, 1.6rem);
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  padding: 0.2rem var(--card-padding-inline);
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.payment-carousel__track {
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
-  overflow-y: visible;
-  scroll-snap-type: x mandatory;
-  scroll-padding: 0;
-  padding: 0.4rem 0 0.6rem;
-  margin: 0;
-  box-sizing: border-box;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
-}
-
-.payment-carousel__track::-webkit-scrollbar {
-  height: 6px;
-}
-
-.payment-carousel__track::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 999px;
-}
-
-.payment-card {
-  padding: 0.85rem 0.9rem;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex: 0 0 100%;
-  min-width: 100%;
-  scroll-snap-align: start;
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
-  border: 1px solid var(--color-border);
-  background: #fffefb;
-  color: var(--color-text-strong);
-}
-
-.payment-card.is-active {
-  border-color: var(--color-accent-border);
-  background: var(--color-button);
-  transform: translateY(-2px);
-  color: var(--color-button-text);
-}
-
-.payment-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: rgba(253, 214, 81, 0.25);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: var(--color-text-strong);
-}
-
-.payment-card.is-active .payment-card__icon {
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--color-text-strong);
-}
-
-.payment-card.is-active .payment-card__name {
-  color: var(--color-button-text);
-}
-
-.payment-card__text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.payment-card__name {
-  margin: 0;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: inherit;
-  line-height: 1.35;
-}
-
 .hint {
   margin: 0;
   font-size: 0.8rem;
@@ -1237,8 +1033,9 @@ fieldset.field {
 .primary-button,
 .ghost-button {
   border-radius: 999px;
-  padding: 0.9rem 2.2rem;
+  padding: 0.52rem 1.25rem;
   font-weight: 600;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -1246,7 +1043,8 @@ fieldset.field {
 .primary-button {
   background: var(--color-button);
   color: var(--color-button-text);
-  border: none;
+  border: 1px solid rgba(234, 179, 8, 0.6);
+  box-shadow: none;
 }
 
 .ghost-button {
@@ -1323,7 +1121,7 @@ fieldset.field {
   overflow: hidden;
   cursor: grab;
   user-select: none;
-  touch-action: pan-x pan-y;
+  touch-action: none;
 }
 
 .map-picker__canvas:active {
@@ -1337,10 +1135,12 @@ fieldset.field {
   flex-wrap: wrap;
 }
 
-
 @media (max-width: 600px) {
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+.fare-upload {
+  margin-top: 1rem;
 }
 </style>
