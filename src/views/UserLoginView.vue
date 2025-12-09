@@ -94,7 +94,7 @@ import type { LoginResponse, SocialLoginResponse } from '@/api/auth'
 import { login as loginApi, socialLogin as socialLoginApi } from '@/api/auth'
 
 // ✅ 소셜 로그인 기존 로직 유지
-import { socialLogin as socialLoginLocal } from '@/services/auth'
+import { login as loginLocal, socialLogin as socialLoginLocal } from '@/services/auth'
 import { loginWithKakao } from '@/services/kakao'
 import { loginWithGoogle } from '@/services/google'
 import { isAuthApiConfigured } from '@/services/apiAuth'
@@ -189,8 +189,12 @@ async function login() {
   loading.value = true
 
   try {
-    const res = await loginApi(id.value.trim(), pw.value)
-    persistSession(res)
+    if (useRemoteAuth) {
+      const res = await loginApi(id.value.trim(), pw.value)
+      persistSession(res)
+    } else {
+      loginLocal(id.value.trim(), pw.value)
+    }
     router.push(resolveRedirect())
   } catch (err: unknown) {
     console.error(err)

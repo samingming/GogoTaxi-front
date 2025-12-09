@@ -1,10 +1,19 @@
 import { isAxiosError } from 'axios'
 import { apiClient } from './client'
-import type { RoomPreview } from '@/types/rooms'
+import type { RoomPreview, RoomParticipant } from '@/types/rooms'
 import type { JoinedRoomEntry } from '@/composables/useRoomMembership'
+import {
+  mockCreateRoom,
+  mockFetchAvailableRooms,
+  mockFetchMyRooms,
+  mockFetchRoomDetail,
+  mockJoinRoom,
+  mockLeaveRoom,
+} from '@/mocks/rooms'
 
 type RawRoom = Record<string, unknown>
 
+const USING_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true'
 const CUSTOM_ENDPOINT = import.meta.env.VITE_MY_ROOMS_PATH?.trim()
 const ROOMS_ENDPOINT = import.meta.env.VITE_ROOMS_PATH?.trim() || '/api/rooms'
 const MY_ROOMS_ENDPOINT = CUSTOM_ENDPOINT || ROOMS_ENDPOINT
@@ -29,6 +38,9 @@ const timeFormatter = new Intl.DateTimeFormat('ko-KR', {
 })
 
 export async function fetchMyRooms(): Promise<JoinedRoomEntry[]> {
+  if (USING_MOCK_API) {
+    return mockFetchMyRooms()
+  }
   if (!import.meta.env.VITE_API_BASE_URL) {
     throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
@@ -85,6 +97,9 @@ export type CreateRoomPayload = {
 }
 
 export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promise<RoomPreview[]> {
+  if (USING_MOCK_API) {
+    return mockFetchAvailableRooms()
+  }
   if (!import.meta.env.VITE_API_BASE_URL) {
     throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
@@ -98,6 +113,9 @@ export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promis
 }
 
 export async function createRoom(payload: CreateRoomPayload): Promise<RoomPreview> {
+  if (USING_MOCK_API) {
+    return mockCreateRoom(payload)
+  }
   if (!import.meta.env.VITE_API_BASE_URL) {
     throw new Error('VITE_API_BASE_URL 환경 변수가 설정되어 있지 않아요.')
   }
@@ -110,22 +128,15 @@ export async function createRoom(payload: CreateRoomPayload): Promise<RoomPrevie
   }
 }
 
-export type RoomParticipant = {
-  id: string
-  name: string
-  seatNumber: number | null
-  role?: string
-  status?: string
-  joinedAt?: string
-  email?: string
-}
-
 export async function fetchRoomDetail(roomId: string): Promise<{
   room: RoomPreview
   participants: RoomParticipant[]
 }> {
   if (!roomId) {
     throw new Error('방 ID가 필요해요.')
+  }
+  if (USING_MOCK_API) {
+    return mockFetchRoomDetail(roomId)
   }
   const url = buildRoomDetailUrl(roomId)
   try {
@@ -139,6 +150,9 @@ export async function fetchRoomDetail(roomId: string): Promise<{
 export async function leaveRoomFromApi(roomId: string) {
   if (!roomId) {
     throw new Error('방 ID가 필요해요.')
+  }
+  if (USING_MOCK_API) {
+    return mockLeaveRoom(roomId)
   }
   const url = buildLeaveUrl(roomId)
   try {
@@ -160,6 +174,9 @@ export async function leaveRoomFromApi(roomId: string) {
 export async function joinRoomFromApi(roomId: string, seatNumber?: number | null) {
   if (!roomId) {
     throw new Error('방 ID가 필요해요.')
+  }
+  if (USING_MOCK_API) {
+    return mockJoinRoom(roomId, seatNumber)
   }
   const url = buildJoinUrl(roomId)
   const payload: Record<string, unknown> = { roomId }
