@@ -150,8 +150,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RoomPreview } from '@/types/rooms'
 import RouteMapBox from '@/components/RouteMapBox.vue'
-import { fetchMyRooms, fetchRoomDetail, leaveRoomFromApi } from '@/api/rooms'
-import type { RoomParticipant } from '@/types/rooms'
+import {
+  fetchMyRooms,
+  fetchRoomDetail,
+  leaveRoomFromApi,
+  type RoomParticipant,
+} from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
 import { connectRoomChannel, type RoomRealtimePatch } from '@/services/roomSocket'
 import { getCurrentUser } from '@/services/auth'

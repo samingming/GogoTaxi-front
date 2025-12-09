@@ -1,4 +1,4 @@
-import type { RoomParticipant } from '@/types/rooms'
+import type { RoomParticipant } from '@/api/rooms'
 import type { RoomPreview } from '@/types/rooms'
 import { getSocketIoModule } from './socketLoader'
 

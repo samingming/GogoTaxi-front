@@ -36,13 +36,3 @@ export type RoomPreview = {
     carModel?: string
   }
 }
-
-export type RoomParticipant = {
-  id: string
-  name: string
-  seatNumber: number | null
-  role?: string
-  status?: string
-  joinedAt?: string
-  email?: string
-}
