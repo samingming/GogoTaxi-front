@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="room" class="room-live">
     <header class="room-live__header">
       <div class="room-live__eyebrow">현재 참여 중인 방</div>
@@ -32,7 +32,12 @@
       <p v-if="detailLoading" class="room-live__status">방 정보를 불러오는 중이에요...</p>
       <p v-else-if="detailError" class="room-live__status room-live__status--error">{{ detailError }}</p>
       <p v-else-if="realtimeError" class="room-live__status room-live__status--error">{{ realtimeError }}</p>
-      <p v-else-if="rideError" class="room-live__status room-live__status--error">{{ rideError }}</p>
+      <p
+        v-else-if="filteredRideError"
+        class="room-live__status room-live__status--error"
+      >
+        {{ filteredRideError }}
+      </p>
     </header>
 
     <div class="room-live__grid">
@@ -59,56 +64,6 @@
           </div>
         </div>
         <p class="fare-summary__hint">참여 인원에 맞춰 n분의 1로 자동 계산돼요.</p>
-      </article>
-
-      <article class="room-panel room-panel--status">
-        <h2>배차 진행 상황</h2>
-        <div class="status-current" :class="`status-current--${statusInfo.key}`">
-          <p class="status-current__label">{{ statusInfo.label }}</p>
-          <p class="status-current__desc">{{ statusInfo.description }}</p>
-          <button
-            v-if="room.status === 'failed'"
-            type="button"
-            class="status-current__retry"
-            @click="retryDispatch"
-          >
-            배차 다시 시도하기
-          </button>
-        </div>
-        <div class="room-panel__cta room-panel__cta--route">
-          <button type="button" class="link-btn" @click="toggleRouteMap">
-            {{ showRouteMap ? '지금 숨기기' : '경로 보기' }}
-          </button>
-        </div>
-        <transition name="route-map">
-          <div v-if="showRouteMap" class="route-map-wrapper">
-            <RouteMapBox :departure="room.departure" :arrival="room.arrival" :title="room.title" />
-          </div>
-        </transition>
-        <ol class="dispatch-timeline" aria-label="배차 진행 단계">
-          <li
-            v-for="step in dispatchTimeline"
-            :key="step.key"
-            class="dispatch-timeline__item"
-            :class="`dispatch-timeline__item--${step.state}`"
-          >
-            <div class="dispatch-timeline__badge">{{ step.title }}</div>
-            <div class="dispatch-timeline__body">
-              <p class="dispatch-timeline__title">{{ step.title }}</p>
-              <p class="dispatch-timeline__desc">{{ step.description }}</p>
-              <small v-if="step.hint" class="dispatch-timeline__hint">{{ step.hint }}</small>
-            </div>
-          </li>
-        </ol>
-
-        <div v-if="showTaxiInfo" class="taxi-card">
-          <p class="taxi-card__title">배차/운행 정보</p>
-          <p class="taxi-card__plate">{{ currentTaxi?.carModel }} · {{ currentTaxi?.carNumber }}</p>
-          <p class="taxi-card__driver">{{ currentTaxi?.driverName }}</p>
-        </div>
-        <p v-else-if="room.status === 'failed'" class="status-hint">
-          배차가 실패했어요. 인원 모집을 조정하거나 다시 시도해 주세요.
-        </p>
       </article>
 
       <article class="room-panel room-panel--participants">
@@ -138,7 +93,6 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RoomPreview } from '@/types/rooms'
-import RouteMapBox from '@/components/RouteMapBox.vue'
 import {
   fetchMyRooms,
   fetchRoomDetail,
@@ -151,7 +105,6 @@ import { getCurrentUser } from '@/services/auth'
 import {
   fetchRideState,
   requestRide,
-  updateRideStage,
   type RideStage,
   type RideState,
 } from '@/api/ride'
@@ -189,6 +142,9 @@ const realtimeError = ref('')
 const disconnectRealtime = ref<null | (() => void)>(null)
 const rideState = ref<RideState | null>(null)
 const rideError = ref('')
+const filteredRideError = computed(() =>
+  rideError.value?.trim() === '배차 단계 정보가 없어요.' ? '' : rideError.value,
+)
 const rideRequesting = ref(false)
 const ridePolling = ref<ReturnType<typeof setInterval> | null>(null)
 const ridePollingBusy = ref(false)
@@ -251,7 +207,6 @@ const isTotalFarePending = computed(() => room.value?.fare == null)
 
 const uberDeepLink = computed(() => buildUberDeepLink(room.value, import.meta.env.VITE_UBER_CLIENT_ID))
 
-const showRouteMap = ref(false)
 const isLeavingRoom = ref(false)
 
 watch(
@@ -393,6 +348,14 @@ function applyRideStage(stage: RideStage, patch: Partial<RideState> = {}) {
   rideState.value = { ...(rideState.value ?? { stage }), ...patch, stage }
 }
 
+function formatFareLabel(amount?: number | null) {
+  if (amount == null) return '요금 미정'
+  const numeric = Number(amount)
+  if (!Number.isFinite(numeric)) return '요금 미정'
+  const rounded = Math.max(0, Math.round(numeric))
+  return `${rounded.toLocaleString('ko-KR')}원`
+}
+
 function applyRoomPatch(patch: RoomRealtimePatch) {
   if (!roomId.value) return
   const baseRoom = roomDetail.value ?? membership.value?.roomSnapshot ?? null
@@ -475,23 +438,9 @@ async function openUber() {
   }
 }
 
-async function retryDispatch() {
-  if (!isHost.value) {
-    realtimeError.value = '방장만 배차를 다시 시도할 수 있어요.'
-    return
-  }
-  await updateRideProgress('dispatching')
-}
 
-async function updateRideProgress(stage: RideStage) {
-  if (!roomId.value) return
-  try {
-    const next = await updateRideStage(roomId.value, { ...(rideState.value ?? { stage }), stage })
-    applyRideState(next)
-  } catch (error) {
-    realtimeError.value = resolveErrorMessage(error, '배차 상태 업데이트에 실패했어요.')
-  }
-}
+
+
 
 function toInitials(source?: string, fallback = 'ME') {
   if (!source) return fallback
@@ -511,9 +460,6 @@ function resolveErrorMessage(err: unknown, fallback: string) {
   return fallback
 }
 
-function toggleRouteMap() {
-  showRouteMap.value = !showRouteMap.value
-}
 
 function buildUberDeepLink(room: RoomPreview | null | undefined, clientId?: string) {
   if (!room?.departure?.position || !room?.arrival?.position) return ''
@@ -538,140 +484,6 @@ function resolveAuthToken() {
     window.localStorage.getItem('auth_token') ||
     ''
   )
-}
-
-type DispatchStepKey =
-  | 'recruiting'
-  | 'requesting'
-  | 'matching'
-  | 'driver_assigned'
-  | 'arriving'
-  | 'aboard'
-  | 'success'
-  | 'failed'
-
-type DispatchStep = { key: DispatchStepKey; title: string; description: string; hint?: string }
-type DispatchStepView = DispatchStep & { state: 'done' | 'active' | 'upcoming' }
-
-const DISPATCH_STEPS: DispatchStep[] = [
-  { key: 'recruiting', title: '인원 모집', description: '최대 4명까지 방에 입장하여 자리를 확정해요.' },
-  { key: 'requesting', title: '호출 요청 준비', description: '방장이 목적지를 확인하고 우버 호출을 눌러요.' },
-  { key: 'matching', title: '배차/매칭 중', description: '소켓으로 배차 진행 상황을 모두에게 실시간 공유해요.' },
-  { key: 'driver_assigned', title: '기사 배정 완료', description: '차량, 기사 정보를 공유 UI에 표시해요.' },
-  { key: 'arriving', title: '픽업지 이동 중', description: '기사님이 픽업 지점으로 이동 중이에요.' },
-  { key: 'aboard', title: '탑승 완료', description: '모두 탑승 후 배차 흐름을 계속 업데이트해요.' },
-  { key: 'success', title: '운행 완료', description: '결제/정산 단계를 마무리해요.' },
-]
-
-const STATUS_LABELS: Record<DispatchStepKey, string> = {
-  recruiting: '모집 중',
-  requesting: '호출 준비',
-  matching: '배차 중',
-  driver_assigned: '기사 배정',
-  arriving: '픽업 이동 중',
-  aboard: '탑승 완료',
-  success: '배차 성공',
-  failed: '배차 실패',
-}
-
-const STATUS_DESCRIPTIONS: Record<DispatchStepKey, string> = {
-  recruiting: '인원을 모집 중입니다.',
-  requesting: '방장이 목적지를 확인하고 호출을 준비하고 있어요.',
-  matching: '실시간 배차가 진행되고 있어요.',
-  driver_assigned: '기사 정보가 확인되었어요.',
-  arriving: '기사님이 픽업 지점으로 이동 중이에요.',
-  aboard: '모두 탑승하여 도착까지 안전 운행!',
-  success: '운행이 완료되었어요.',
-  failed: '배차가 실패하여 다시 시도해야 해요.',
-}
-
-const statusKey = computed<DispatchStepKey>(() =>
-  rideStageToDispatchStep(rideState.value?.stage) ?? normalizeStatus(room.value?.status),
-)
-
-const statusInfo = computed(() => ({
-  key: statusKey.value,
-  label: STATUS_LABELS[statusKey.value],
-  description: STATUS_DESCRIPTIONS[statusKey.value],
-}))
-
-const dispatchTimeline = computed<DispatchStepView[]>(() => {
-  const current = statusKey.value
-  const currentIndex = DISPATCH_STEPS.findIndex(step => step.key === current)
-  return DISPATCH_STEPS.map((step, index) => {
-    const state =
-      current === 'failed'
-        ? index < (currentIndex === -1 ? 2 : currentIndex)
-          ? 'done'
-          : 'upcoming'
-        : index < currentIndex
-          ? 'done'
-          : index === currentIndex
-            ? 'active'
-            : 'upcoming'
-    return { ...step, state }
-  })
-})
-
-const currentTaxi = computed(() => {
-  if (rideState.value) {
-    const { driverName, carModel, carNumber } = rideState.value
-    if (driverName || carModel || carNumber) return { driverName, carModel, carNumber }
-  }
-  return room.value?.taxi
-})
-
-const showTaxiInfo = computed(() =>
-  ['driver_assigned', 'arriving', 'aboard', 'success'].includes(statusKey.value) && currentTaxi.value,
-)
-
-function formatFareLabel(amount?: number | null) {
-  if (amount == null) return '요금 미정'
-  return `₩${amount.toLocaleString('ko-KR')}`
-}
-
-function normalizeStatus(status?: RoomPreview['status']): DispatchStepKey {
-  switch (status) {
-    case 'requesting':
-      return 'requesting'
-    case 'matching':
-      return 'matching'
-    case 'dispatching':
-      return 'matching'
-    case 'driver_assigned':
-      return 'driver_assigned'
-    case 'arriving':
-      return 'arriving'
-    case 'aboard':
-      return 'aboard'
-    case 'success':
-      return 'success'
-    case 'failed':
-      return 'failed'
-    default:
-      return 'recruiting'
-  }
-}
-
-function rideStageToDispatchStep(stage?: RideStage | null): DispatchStepKey | null {
-  switch (stage) {
-    case 'pending':
-      return 'requesting'
-    case 'dispatching':
-      return 'matching'
-    case 'accepted':
-      return 'driver_assigned'
-    case 'approaching':
-      return 'arriving'
-    case 'onboard':
-      return 'aboard'
-    case 'completed':
-      return 'success'
-    case 'cancelled':
-      return 'failed'
-    default:
-      return null
-  }
 }
 
 watch(
@@ -883,32 +695,9 @@ onBeforeUnmount(() => {
   border-radius: 14px;
 }
 
-.route-map-wrapper {
-  margin-top: 18px;
-}
 
-.route-map-enter-active,
-.route-map-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
 
-.route-map-enter-from,
-.route-map-leave-to {
-  opacity: 0;
-  transform: translateY(12px);
-}
 
-.link-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-size: 14px;
-  color: #c2410c;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-}
 
 .participant-list {
   list-style: none;
@@ -951,89 +740,12 @@ onBeforeUnmount(() => {
   color: #b45309;
 }
 
-.status-current {
-  border-radius: 20px;
-  padding: 18px;
-  background: rgba(253, 230, 138, 0.45);
-  border: 1px solid rgba(251, 191, 36, 0.45);
-}
 
-.status-current__label {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #7c2d12;
-}
 
-.status-current__desc {
-  margin: 6px 0 0;
-  color: #a16207;
-}
 
-.status-current__retry {
-  margin-top: 12px;
-  align-self: flex-start;
-  background: #b91c1c;
-  color: #fffaf0;
-  border: none;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
 
-.status-current__retry:hover {
-  transform: translateY(-1px);
-}
 
-.status-current--success {
-  background: rgba(187, 247, 208, 0.45);
-  border-color: rgba(16, 185, 129, 0.45);
-}
 
-.status-current--failed {
-  background: rgba(254, 226, 226, 0.65);
-  border-color: rgba(248, 113, 113, 0.45);
-}
-
-.status-hint {
-  margin: 0;
-  font-size: 14px;
-  color: #b45309;
-}
-
-.taxi-card {
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: rgba(16, 185, 129, 0.08);
-  display: grid;
-  gap: 4px;
-}
-
-.taxi-card__title {
-  margin: 0;
-  font-size: 13px;
-  color: #0f766e;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.taxi-card__plate {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #065f46;
-}
-
-.taxi-card__driver {
-  margin: 0;
-  font-size: 13px;
-  color: #0f766e;
-}
-
-.room-panel--status,
 .room-panel--participants {
   grid-column: span 2;
 }
@@ -1105,78 +817,34 @@ onBeforeUnmount(() => {
   min-width: 150px;
 }
 
-.dispatch-timeline {
-  list-style: none;
-  padding: 0;
-  margin: 14px 0 0;
-  display: grid;
-  gap: 10px;
-}
 
-.dispatch-timeline__item {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: start;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: #fff;
-}
 
-.dispatch-timeline__item--done {
-  border-color: rgba(34, 197, 94, 0.4);
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0.06), #fff);
-}
 
-.dispatch-timeline__item--active {
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
-}
 
-.dispatch-timeline__badge {
-  min-width: 120px;
-  padding: 6px 10px;
-  background: rgba(17, 24, 39, 0.05);
-  border-radius: 12px;
-  font-weight: 700;
-  text-align: center;
-}
 
-.dispatch-timeline__item--done .dispatch-timeline__badge {
-  background: rgba(34, 197, 94, 0.15);
-}
 
-.dispatch-timeline__item--active .dispatch-timeline__badge {
-  background: rgba(37, 99, 235, 0.15);
-}
 
-.dispatch-timeline__title {
-  margin: 0;
-  font-weight: 700;
-}
 
-.dispatch-timeline__desc {
-  margin: 4px 0 0;
-  color: #4b5563;
-}
 
-.dispatch-timeline__hint {
-  display: inline-block;
-  margin-top: 4px;
-  color: #2563eb;
-}
 
-.link-hint {
-  font-size: 13px;
-  color: #9ca3af;
-}
 
 
 @media (max-width: 720px) {
-  .room-panel--status,
   .room-panel--participants {
     grid-column: auto;
   }
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
