@@ -2,11 +2,11 @@
   <div class="charge-wrapper">
     <div class="charge-container">
       <div class="charge-header">
-        <p class="charge-eyebrow">지금 바로 충전해요.</p>
+        <button type="button" class="back-button" @click="goBack" aria-label="뒤로가기">
+          <img :src="arrowBackIcon" alt="" class="back-icon" aria-hidden="true" />
+        </button>
         <h1 class="charge-title">충전하기</h1>
-        <p class="charge-description">
-          충전할 금액을 직접 입력하고 바로 충전을 진행해 주세요. 승인 완료 즉시 잔액으로 반영돼요.
-        </p>
+        <span class="header-spacer" aria-hidden="true"></span>
       </div>
 
       <section class="charge-summary" aria-labelledby="charge-summary-title">
@@ -24,11 +24,11 @@
             aria-label="충전할 금액"
           />
         </div>
-        <p class="summary-caption">현재 입력 금액 <strong>{{ formattedAmount }}</strong>이 충전돼요.</p>
+        <p class="summary-caption">현재 입력 금액 <strong>{{ formattedAmount }}</strong>원을 충전해요.</p>
       </section>
 
       <button type="button" class="charge-action" :disabled="isSubmitting" @click="confirmCharge">
-        {{ isSubmitting ? "충전 중..." : "충전하기" }}
+        {{ isSubmitting ? "충전 중.." : "충전하기" }}
       </button>
 
       <p v-if="errorMessage" class="charge-error" role="alert">
@@ -38,9 +38,9 @@
       <section class="charge-guide" aria-labelledby="charge-guide-title">
         <h2 id="charge-guide-title" class="guide-title">안내 사항</h2>
         <ul class="guide-list">
-          <li>충전 승인이 끝나면 입력한 금액이 즉시 꼬꼬페이에 반영돼요.</li>
-          <li>충전 후 10분 이내 취소 시 처리에 추가 시간이 필요할 수 있어요.</li>
-          <li>결제 카드 명세서에는 “꼬꼬페이 충전”으로 표기돼요.</li>
+          <li>충전이 승인되면 입력한 금액이 즉시 잔액으로 반영돼요.</li>
+          <li>충전 후 10분 이내 취소 요청은 카드사 정책에 따라 처리될 수 있어요.</li>
+          <li>결제 카드 명세서에 코코페이 충전으로 표시될 수 있어요.</li>
         </ul>
       </section>
     </div>
@@ -50,6 +50,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import arrowBackIcon from "@/assets/arrowback.svg";
 import { refreshUserBalance } from "@/stores/userStore";
 import { topupWallet } from "@/services/walletService";
 
@@ -93,12 +94,16 @@ const confirmCharge = async () => {
     isSubmitting.value = false;
   }
 };
+
+const goBack = () => {
+  router.back();
+};
 </script>
 
 <style scoped>
 .charge-wrapper {
   min-height: calc((var(--app-vh, 1vh) * 100) - var(--header-h));
-  background: #fff5cc;
+  background: #fff7e1;
   padding: 32px 24px 24px;
   font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
   display: flex;
@@ -115,31 +120,20 @@ const confirmCharge = async () => {
 }
 
 .charge-header {
-  text-align: left;
+  text-align: center;
   color: #7c5a00;
-  display: flex;
-  flex-direction: column;
-}
-
-.charge-eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #f59e0b;
-  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .charge-title {
   margin: 4px 0 8px;
-  font-size: 28px;
+  font-size: clamp(24px, 5vw, 28px);
   line-height: 1.2;
   color: #0f172a;
-}
-
-.charge-description {
-  margin: 0;
-  font-size: 14px;
-  color: #a16207;
+  justify-self: center;
 }
 
 .charge-summary {
@@ -148,7 +142,6 @@ const confirmCharge = async () => {
   padding: 24px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
 }
-
 
 .summary-label {
   margin: 0;
@@ -247,6 +240,34 @@ const confirmCharge = async () => {
   margin: -8px 0 0;
   font-size: 14px;
   color: #b91c1c;
+}
+
+.back-button {
+  border: none;
+  background: transparent;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.back-button:focus-visible {
+  outline: 3px solid rgba(203, 128, 38, 0.4);
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.back-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.header-spacer {
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 
 .sr-only {

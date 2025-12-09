@@ -94,7 +94,7 @@ function formatDate(dateISO: string) {
 }
 .notice__header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: clamp(24px, 5vw, 28px);
   font-weight: 700;
 }
 .notice__header p {
