@@ -12,28 +12,6 @@
       <section class="charge-summary" aria-labelledby="charge-summary-title">
         <h2 id="charge-summary-title" class="sr-only">충전 금액 입력</h2>
         <div class="summary-label">충전 금액 입력</div>
-        <div class="receipt-upload">
-          <div class="receipt-upload__header">
-            <p class="receipt-upload__title">이미지로 자동 입력</p>
-            <small class="receipt-upload__hint">Gemini 비전으로 금액을 추출해요.</small>
-          </div>
-          <div class="receipt-upload__actions">
-            <label class="upload-button" for="receipt-file">이미지 선택</label>
-            <input
-              id="receipt-file"
-              type="file"
-              accept="image/*"
-              class="upload-input"
-              @change="handleReceiptUpload"
-            />
-            <span v-if="selectedFileName" class="upload-file">{{ selectedFileName }}</span>
-          </div>
-          <p v-if="isScanning" class="upload-status">금액 인식 중이에요...</p>
-          <p v-else-if="recognizedAmount" class="upload-status upload-status--success">
-            인식된 금액 {{ recognizedCurrency }} {{ formatNumber(recognizedAmount) }}을 입력했어요.
-          </p>
-          <p v-else-if="scanError" class="upload-status upload-status--error">{{ scanError }}</p>
-        </div>
         <div class="summary-input">
           <span class="amount-currency" aria-hidden="true">₩</span>
           <input
@@ -73,17 +51,12 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { refreshUserBalance } from "@/stores/userStore";
-import { extractAmountFromReceipt, topupWallet } from "@/services/walletService";
+import { topupWallet } from "@/services/walletService";
 
 const router = useRouter();
 const amountInput = ref("10000");
 const isSubmitting = ref(false);
 const errorMessage = ref("");
-const isScanning = ref(false);
-const scanError = ref("");
-const recognizedAmount = ref<number | null>(null);
-const recognizedCurrency = ref("KRW");
-const selectedFileName = ref("");
 
 const currentAmount = computed(() => {
   const digits = Number(amountInput.value.replace(/[^0-9]/g, ""));
@@ -94,44 +67,9 @@ const formattedAmount = computed(() =>
   new Intl.NumberFormat("ko-KR").format(currentAmount.value)
 );
 
-const formatNumber = (value: number) =>
-  new Intl.NumberFormat("ko-KR").format(Math.max(0, value));
-
 const handleAmountInput = (event: Event) => {
   const value = (event.target as HTMLInputElement).value;
   amountInput.value = value.replace(/[^0-9]/g, "");
-};
-
-const handleReceiptUpload = async (event: Event) => {
-  const files = (event.target as HTMLInputElement).files;
-  const file = files?.[0];
-  if (!file) return;
-
-  selectedFileName.value = file.name;
-  scanError.value = "";
-  recognizedAmount.value = null;
-  isScanning.value = true;
-
-  try {
-    const result = await extractAmountFromReceipt(file);
-    const amount = typeof result?.amount === "number" ? Math.round(result.amount) : null;
-    if (amount && Number.isFinite(amount)) {
-      recognizedAmount.value = amount;
-      amountInput.value = String(amount);
-      if (result?.currency) {
-        recognizedCurrency.value = result.currency.toUpperCase();
-      }
-    } else {
-      scanError.value =
-        result?.reason || "금액을 읽어오지 못했어요. 이미지가 또렷한지 확인해 주세요.";
-    }
-  } catch (error) {
-    console.error("Failed to extract receipt amount", error);
-    scanError.value = "영수증 금액 인식에 실패했어요. 잠시 후 다시 시도해 주세요.";
-  } finally {
-    isScanning.value = false;
-    (event.target as HTMLInputElement).value = "";
-  }
 };
 
 const confirmCharge = async () => {
@@ -216,86 +154,6 @@ const confirmCharge = async () => {
   margin: 0;
   font-size: 14px;
   color: #d97706;
-}
-
-.receipt-upload {
-  margin: 10px 0 14px;
-  padding: 12px;
-  border: 1px dashed rgba(124, 45, 18, 0.35);
-  border-radius: 12px;
-  background: rgba(253, 230, 138, 0.15);
-}
-
-.receipt-upload__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.receipt-upload__title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #7c2d12;
-}
-
-.receipt-upload__hint {
-  margin: 0;
-  font-size: 12px;
-  color: #c2410c;
-}
-
-.receipt-upload__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.upload-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(124, 45, 18, 0.2);
-  background: #fdd651;
-  color: #7c2d12;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.upload-button:hover {
-  filter: brightness(0.98);
-}
-
-.upload-input {
-  display: none;
-}
-
-.upload-file {
-  font-size: 13px;
-  color: #92400e;
-  background: #fff7e6;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(124, 45, 18, 0.15);
-}
-
-.upload-status {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: #a16207;
-}
-
-.upload-status--success {
-  color: #15803d;
-}
-
-.upload-status--error {
-  color: #b91c1c;
 }
 
 .summary-input {

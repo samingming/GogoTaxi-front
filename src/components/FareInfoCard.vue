@@ -9,11 +9,18 @@
         <p class="fare-summary__label">
           내 요금 <span class="fare-summary__count">({{ participantCountLabel }}명)</span>
         </p>
-        <strong>{{ formattedPerPersonFare }}</strong>
+        <strong
+          class="fare-summary__value"
+          :class="{ 'fare-summary__value--pending': isPerPersonFarePending }"
+        >
+          {{ formattedPerPersonFare }}
+        </strong>
       </div>
       <div class="fare-summary__item">
         <p class="fare-summary__label">전체 요금</p>
-        <strong>{{ formattedTotalFare }}</strong>
+        <strong class="fare-summary__value" :class="{ 'fare-summary__value--pending': isTotalFarePending }">
+          {{ formattedTotalFare }}
+        </strong>
       </div>
     </div>
 
@@ -23,8 +30,19 @@
 
     <div v-if="allowUpload" class="fare-ocr">
       <div class="fare-ocr__header">
-        <p class="fare-ocr__title">{{ uploadTitle }}</p>
-        <small class="fare-ocr__hint">{{ uploadHint }}</small>
+        <div class="fare-ocr__text">
+          <p class="fare-ocr__title">{{ uploadTitle }}</p>
+          <small class="fare-ocr__hint">{{ uploadHint }}</small>
+        </div>
+        <a
+          v-if="uploadActionLink"
+          class="fare-ocr__deeplink"
+          :href="uploadActionLink"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {{ uploadActionLabel }}
+        </a>
       </div>
       <div class="fare-ocr__controls">
         <label class="fare-ocr__upload">
@@ -57,6 +75,8 @@ const props = withDefaults(
     uploadTitle?: string
     uploadHint?: string
     uploadButtonLabel?: string
+    uploadActionLabel?: string
+    uploadActionLink?: string | null
     recognizedFare?: number | null
     currency?: string
     pending?: boolean
@@ -71,6 +91,8 @@ const props = withDefaults(
     uploadTitle: '예상 금액 캡처 인식',
     uploadHint: 'Uber 화면 캡처를 올리면 Gemini가 금액을 읽어요.',
     uploadButtonLabel: '이미지 선택',
+    uploadActionLabel: 'Uber 앱 열기',
+    uploadActionLink: null,
     recognizedFare: null,
     currency: 'KRW',
     pending: false,
@@ -117,6 +139,10 @@ const formattedPerPersonFare = computed(() =>
 const formattedTotalFare = computed(() =>
   showPendingFare.value ? '요금 미정' : formatFare(props.totalFare),
 )
+const isPerPersonFarePending = computed(
+  () => showPendingFare.value || props.perPersonFare == null,
+)
+const isTotalFarePending = computed(() => showPendingFare.value || props.totalFare == null)
 const formattedRecognizedAmount = computed(() =>
   recognizedAmount.value !== null ? recognizedAmount.value.toLocaleString('ko-KR') : '',
 )
@@ -199,9 +225,16 @@ async function handleFileChange(event: Event) {
   margin-left: 6px;
 }
 
-.fare-summary__item strong {
+.fare-summary__value {
   font-size: 22px;
   color: #7c2d12;
+  font-weight: 700;
+}
+
+.fare-summary__value--pending {
+  font-size: 14px;
+  color: #a16207;
+  font-weight: 600;
 }
 
 .fare-summary__hint {
@@ -222,6 +255,18 @@ async function handleFileChange(event: Event) {
   gap: 10px;
 }
 
+.fare-ocr__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fare-ocr__text {
+  display: grid;
+  gap: 4px;
+}
+
 .fare-ocr__title {
   margin: 0;
   font-size: 14px;
@@ -231,6 +276,27 @@ async function handleFileChange(event: Event) {
 
 .fare-ocr__hint {
   color: #a16207;
+}
+
+.fare-ocr__deeplink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 45, 18, 0.35);
+  background: rgba(250, 204, 21, 0.12);
+  color: #7c2d12;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.fare-ocr__deeplink:hover {
+  background: rgba(250, 204, 21, 0.3);
+  color: #5c1a05;
 }
 
 .fare-ocr__controls {
@@ -244,13 +310,14 @@ async function handleFileChange(event: Event) {
 .fare-ocr__upload {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
+  gap: 4px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: none;
   background: rgba(250, 204, 21, 0.18);
   color: #7c2d12;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 12px;
   cursor: pointer;
   box-shadow: none;
   transition: background 0.2s ease, color 0.2s ease;

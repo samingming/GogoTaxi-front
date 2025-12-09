@@ -72,22 +72,31 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+const rawBaseUrl =
+  (import.meta.env.VITE_API_BASE_URL?.trim() ?? '') ||
+  (import.meta.env.VITE_API_URL?.trim() ?? '')
+
+let normalizedBaseUrl = rawBaseUrl.replace(/\/+$/, '')
+if (/\/api$/i.test(normalizedBaseUrl)) {
+  normalizedBaseUrl = normalizedBaseUrl.replace(/\/api$/i, '')
+}
+if (/\/api\/?$/i.test(rawBaseUrl) && !normalizedBaseUrl) {
+  normalizedBaseUrl = rawBaseUrl
+}
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: normalizedBaseUrl || '',
   withCredentials: true,
 })
 
 apiClient.interceptors.request.use(config => {
-  const token =
-    localStorage.getItem('accessToken') ||
-    localStorage.getItem('gogotaxi_token') ||
-    localStorage.getItem('auth_token')
+  const token = getAccessToken()
   if (token) {
     config.headers = config.headers ?? {}
     config.headers.Authorization = `Bearer ${token}`
   }
-  return config;
-});
+  return config
+})
 
 apiClient.interceptors.response.use(
   (response) => response,

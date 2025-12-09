@@ -1,13 +1,8 @@
 ﻿<template>
   <section class="create-room">
     <div class="create-room__container">
-      <header class="page-header">
-        <div>
-          <p class="page-header__eyebrow">방 만들기</p>
-          <p class="page-header__description page-header__description--inline">
-            조건을 입력하면 꼬꼬택이 함께 탈 동승자를 찾아드려요.
-          </p>
-        </div>
+      <header class="create-room__hero">
+        <h1>방 만들기</h1>
       </header>
 
       <form class="form" @submit.prevent="submitForm">
@@ -114,6 +109,8 @@
             :total-fare="recognizedFare ?? undefined"
             :per-person-fare="null"
             :allow-upload="true"
+            :upload-action-link="uberDeepLink"
+            upload-action-label="Uber 앱 열기"
             @fare-recognized="handleFareRecognized"
             @fare-pending="farePending = true"
           />
@@ -220,6 +217,9 @@ const form = reactive({
   departureTime: getCurrentSeoulTime(),
 })
 
+const uberClientId = import.meta.env.VITE_UBER_CLIENT_ID
+const uberDeepLink = computed(() => buildUberDeepLinkFromSelection())
+
 const departureQuery = ref('')
 const arrivalQuery = ref('')
 const departureSuggestions = ref<SelectedPlace[]>([])
@@ -313,6 +313,21 @@ const searchTimers: Record<FieldKind, ReturnType<typeof setTimeout> | null> = {
 const suppressSearch: Record<FieldKind, boolean> = {
   departure: false,
   arrival: false,
+}
+
+function buildUberDeepLinkFromSelection() {
+  if (!form.departure?.position || !form.arrival?.position) return ''
+  const params = new URLSearchParams({
+    action: 'setPickup',
+    'pickup[latitude]': String(form.departure.position.lat),
+    'pickup[longitude]': String(form.departure.position.lng),
+    'dropoff[latitude]': String(form.arrival.position.lat),
+    'dropoff[longitude]': String(form.arrival.position.lng),
+  })
+  if (form.departure.name) params.set('pickup[nickname]', form.departure.name)
+  if (form.arrival.name) params.set('dropoff[nickname]', form.arrival.name)
+  if (uberClientId) params.set('client_id', uberClientId)
+  return `https://m.uber.com/ul/?${params.toString()}`
 }
 
 function isKakaoStatusOk(status: unknown) {
@@ -460,7 +475,7 @@ async function setupMapPicker() {
   const canvas = mapPickerCanvas.value
   canvas.style.touchAction = 'none'
   canvas.style.overscrollBehavior = 'none'
-  canvas.style.msTouchAction = 'none'
+  canvas.style.setProperty('-ms-touch-action', 'none')
   canvas.style.pointerEvents = 'auto'
   const center = new kakaoApi.maps.LatLng(mapPickerPosition.lat, mapPickerPosition.lng)
   const pickerMap = new kakaoApi.maps.Map(mapPickerCanvas.value, {
@@ -795,44 +810,25 @@ async function submitForm() {
   overflow-x: hidden;
 }
 
-.page-header,
-.preview-card,
+.create-room__hero {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(228, 180, 97, 0.55);
+}
+
+.create-room__hero h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 36px);
+  color: #2b1400;
+}
+
 .form,
 fieldset.field,
 .map-picker__panel {
   background: #ffffff;
   border: 1px solid var(--color-border);
   border-radius: 32px;
-}
-
-.page-header {
-  padding: clamp(20px, 3vw, 32px);
-}
-
-.page-header__eyebrow {
-  margin: 0;
-  font-size: 0.84rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-}
-
-.page-header h1 {
-  margin: 0.4rem 0 0.6rem;
-  font-size: clamp(1.4rem, 4vw, 2rem);
-}
-
-.page-header__description {
-  margin: 0;
-  color: var(--color-text-muted);
-  line-height: 1.45;
-}
-
-.page-header__description--inline {
-  font-size: 0.85rem;
-  font-weight: 500;
-  white-space: nowrap;
 }
 
 .form {
@@ -858,17 +854,32 @@ fieldset.field,
   position: relative;
 }
 
+.field > span {
+  color: #7c2d12;
+  font-weight: 600;
+}
+
 .field input,
-.field select {
+.field select,
+.field textarea {
   border-radius: 18px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   padding: 0.85rem 1rem;
   background: #ffffff;
+  color: #a16207;
+  font-family: inherit;
   transition: border 0.2s ease;
 }
 
+.field input::placeholder,
+.field select::placeholder,
+.field textarea::placeholder {
+  color: rgba(161, 98, 7, 0.85);
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: var(--color-button);
 }
@@ -923,8 +934,8 @@ fieldset.field,
   height: 2.3rem;
   border-radius: 50%;
   border: none;
-  background: var(--color-button);
-  color: var(--color-button-text);
+  background: transparent;
+  color: #a16207;
   font-weight: 600;
   cursor: pointer;
 }
@@ -940,7 +951,7 @@ fieldset.field,
   justify-content: center;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--color-text-strong);
+  color: #7c2d12;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -975,8 +986,9 @@ fieldset.field,
 .primary-button,
 .ghost-button {
   border-radius: 999px;
-  padding: 0.9rem 2.2rem;
+  padding: 0.52rem 1.25rem;
   font-weight: 600;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -1076,6 +1088,10 @@ fieldset.field,
   flex-wrap: wrap;
 }
 
+.fare-upload {
+  margin-top: 1rem;
+}
+
 
 @media (max-width: 600px) {
   .form-grid {
@@ -1083,6 +1099,3 @@ fieldset.field,
   }
 }
 </style>
-.fare-upload {
-  margin-top: 1rem;
-}

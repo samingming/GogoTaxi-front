@@ -1,11 +1,7 @@
 <template>
   <section class="my-rooms">
     <header class="my-rooms__hero">
-      <p class="my-rooms__eyebrow">참여 중인 방</p>
       <h1>나의 방</h1>
-      <p class="my-rooms__desc">
-        방찾기에서 합류한 방이 여기에 정리돼요. 좌석을 확정하거나 방 세부 정보로 바로 들어갈 수 있어요.
-      </p>
       <div class="hero-actions">
         <button
           type="button"
@@ -57,16 +53,21 @@
           </div>
         </dl>
         <footer class="room-card__actions">
-          <button type="button" class="btn btn--primary" @click="enterRoom(entry)">
-            {{ entry.seatNumber ? '방 입장' : '좌석 먼저 선택' }}
-          </button>
-          <button
-            type="button"
-            class="btn btn--ghost"
-            :disabled="leavingRoomId === entry.roomId"
-            @click="dropRoom(entry.roomId)"
-          >
-            {{ leavingRoomId === entry.roomId ? '방 나가는 중...' : '방 나가기' }}
+          <div class="room-card__split-actions">
+            <button type="button" class="btn btn--ghost" @click="enterRoom(entry)">
+              {{ entry.seatNumber ? '방 입장' : '좌석 먼저 선택' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn--ghost"
+              :disabled="leavingRoomId === entry.roomId"
+              @click="dropRoom(entry.roomId)"
+            >
+              {{ leavingRoomId === entry.roomId ? '방 나가는 중...' : '방 나가기' }}
+            </button>
+          </div>
+          <button type="button" class="btn btn--settle" @click="goToSettlement(entry.roomId)">
+            정산하기
           </button>
         </footer>
       </article>
@@ -152,6 +153,11 @@ function goFindRoom() {
   router.push({ name: 'find-room' })
 }
 
+function goToSettlement(roomId: string) {
+  if (!roomId) return
+  router.push({ name: 'receipt-scan', query: { roomId } })
+}
+
 function resolveErrorMessage(err: unknown, fallback: string) {
   if (err instanceof Error) {
     return err.message || fallback
@@ -224,25 +230,10 @@ async function dropRoom(roomId: string) {
   border-bottom: 1px solid rgba(228, 180, 97, 0.6);
 }
 
-.my-rooms__eyebrow {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(217, 119, 6, 0.9);
-}
-
 .my-rooms__hero h1 {
   margin: 0;
-  font-size: clamp(26px, 5vw, 34px);
-  color: #3b2600;
-}
-
-.my-rooms__desc {
-  margin: 0;
-  color: #6b3b00;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: clamp(28px, 5vw, 36px);
+  color: #2b1400;
 }
 
 .my-rooms__status {
@@ -366,9 +357,15 @@ async function dropRoom(roomId: string) {
 
 .room-card__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 0.5rem;
+}
+
+.room-card__split-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  align-items: flex-start;
 }
 
 .btn {
@@ -383,9 +380,14 @@ async function dropRoom(roomId: string) {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.btn--primary {
-  background: rgba(251, 191, 36, 0.4);
-  color: #92400e;
+.btn--settle {
+  width: 100%;
+  border-radius: 18px;
+  border: none;
+  padding: 12px 18px;
+  background: rgba(187, 247, 208, 0.9);
+  color: #15803d;
+  font-weight: 700;
 }
 
 .btn--ghost {

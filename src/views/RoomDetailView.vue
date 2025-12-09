@@ -65,11 +65,18 @@
             <p class="fare-summary__label">
               내 요금 <span class="fare-summary__count">({{ participantCount }}명)</span>
             </p>
-            <strong>{{ formatFareLabel(perPersonFare) }}</strong>
+            <strong
+              class="fare-summary__value"
+              :class="{ 'fare-summary__value--pending': isPerPersonFarePending }"
+            >
+              {{ formatFareLabel(perPersonFare) }}
+            </strong>
           </div>
           <div class="fare-summary__item">
             <p class="fare-summary__label">전체 요금</p>
-            <strong>{{ formatFareLabel(room?.fare) }}</strong>
+            <strong class="fare-summary__value" :class="{ 'fare-summary__value--pending': isTotalFarePending }">
+              {{ formatFareLabel(room?.fare) }}
+            </strong>
           </div>
         </div>
         <p class="fare-summary__hint">참여 인원에 맞춰 n분의 1로 자동 계산돼요.</p>
@@ -250,6 +257,8 @@ const perPersonFare = computed(() => {
   const fare = room.value?.fare
   return fare ? Math.round(fare / participantCount.value) : undefined
 })
+const isPerPersonFarePending = computed(() => perPersonFare.value == null)
+const isTotalFarePending = computed(() => room.value?.fare == null)
 
 const uberDeepLink = computed(() => buildUberDeepLink(room.value, import.meta.env.VITE_UBER_CLIENT_ID))
 
@@ -864,9 +873,16 @@ onBeforeUnmount(() => {
   margin-left: 6px;
 }
 
-.fare-summary__item strong {
+.fare-summary__value {
   font-size: 22px;
   color: #7c2d12;
+  font-weight: 700;
+}
+
+.fare-summary__value--pending {
+  font-size: 14px;
+  color: #a16207;
+  font-weight: 600;
 }
 
 .fare-summary__hint {
