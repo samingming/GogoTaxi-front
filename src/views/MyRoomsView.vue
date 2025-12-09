@@ -92,7 +92,7 @@ const errorMessage = ref('')
 const lastUpdatedAt = ref<string | null>(null)
 const leavingRoomId = ref<string | null>(null)
 
-const STATUS_META: Record<NonNullable<RoomPreview['status']>, { label: string }> = {
+const STATUS_META: Partial<Record<NonNullable<RoomPreview['status']>, { label: string }>> = {
   recruiting: { label: '모집 중' },
   dispatching: { label: '배차 중' },
   success: { label: '탑승 완료' },

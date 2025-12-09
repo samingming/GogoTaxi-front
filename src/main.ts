@@ -6,6 +6,7 @@ import { refreshUserBalance } from '@/stores/userStore'
 declare global {
   interface Window {
     __gogoTaxiViewportHandlerAdded__?: boolean
+    __gogoTaxiDoubleTapBlockerAdded__?: boolean
   }
 }
 
@@ -15,11 +16,29 @@ function setViewportUnit() {
   document.documentElement.style.setProperty('--app-vh', `${vh}px`)
 }
 
+function preventDoubleTapZoom() {
+  if (typeof window === 'undefined' || window.__gogoTaxiDoubleTapBlockerAdded__) return
+  window.__gogoTaxiDoubleTapBlockerAdded__ = true
+  let lastTouchTime = 0
+  window.addEventListener(
+    'touchend',
+    event => {
+      const now = Date.now()
+      if (now - lastTouchTime <= 350) {
+        event.preventDefault()
+      }
+      lastTouchTime = now
+    },
+    { passive: false },
+  )
+}
+
 if (typeof window !== 'undefined' && !window.__gogoTaxiViewportHandlerAdded__) {
   window.__gogoTaxiViewportHandlerAdded__ = true
   setViewportUnit()
   window.addEventListener('resize', setViewportUnit)
   window.addEventListener('orientationchange', setViewportUnit)
+  preventDoubleTapZoom()
 }
 
 const app = createApp(App)
