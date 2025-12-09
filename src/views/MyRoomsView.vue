@@ -66,7 +66,12 @@
               {{ leavingRoomId === entry.roomId ? '방 나가는 중...' : '방 나가기' }}
             </button>
           </div>
-          <button type="button" class="btn btn--settle" @click="goToSettlement(entry.roomId)">
+          <button
+            v-if="isHost(entry)"
+            type="button"
+            class="btn btn--settle"
+            @click="goToSettlement(entry.roomId)"
+          >
             정산하기
           </button>
         </footer>
@@ -114,6 +119,7 @@ type RoomCard = {
   joinedAtLabel: string
   statusLabel: string
   statusKey: string
+  role?: string
 }
 
 const statusMessage = computed(() => {
@@ -139,9 +145,17 @@ const roomCards = computed<RoomCard[]>(() =>
       joinedAtLabel,
       statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
       statusKey,
+      role: entry.role,
     }
   }),
 )
+
+function isHost(entry: RoomCard) {
+  const role = entry.role?.toLowerCase().trim()
+  if (!role) return false
+  const hostRoles = ['host', 'leader', 'owner', 'captain', 'master', 'admin', '방장']
+  return hostRoles.includes(role)
+}
 
 function formatJoinedAt(iso: string) {
   const date = new Date(iso)

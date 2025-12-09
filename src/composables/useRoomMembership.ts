@@ -10,6 +10,7 @@ export type JoinedRoomEntry = {
   roomId: string
   joinedAt: string
   seatNumber: number | null
+  role?: string
   roomSnapshot: RoomPreview
 }
 
@@ -74,6 +75,7 @@ function cloneEntry(entry: JoinedRoomEntry): JoinedRoomEntry {
     roomId: entry.roomId,
     joinedAt: entry.joinedAt,
     seatNumber: entry.seatNumber,
+    role: entry.role,
     roomSnapshot: {
       ...entry.roomSnapshot,
       departure: {
@@ -127,6 +129,7 @@ function joinRoom(room: RoomPreview) {
       roomId: room.id,
       joinedAt: now,
       seatNumber: null,
+      role: undefined,
       roomSnapshot: room,
     },
     ...joinedRooms.value,

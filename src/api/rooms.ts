@@ -280,11 +280,13 @@ function normalizeJoinedRoom(item: unknown, index: number): JoinedRoomEntry {
     raw.seat,
     raw.reservationSeat,
   ])
+  const role = pickString([raw.role, raw.positionName, raw.type, raw.rank])
 
   return {
     roomId: room.id,
     joinedAt,
     seatNumber,
+    role: role ?? undefined,
     roomSnapshot: room,
   }
 }
