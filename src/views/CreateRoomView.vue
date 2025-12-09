@@ -2,6 +2,10 @@
   <section class="create-room">
     <div class="create-room__container">
       <header class="create-room__hero">
+<<<<<<< HEAD
+=======
+        <p class="create-room__eyebrow">꼬꼬택 방 생성</p>
+>>>>>>> upstream/main
         <h1>방 만들기</h1>
       </header>
 
@@ -35,7 +39,15 @@
                 @click="openMapPicker('departure')"
                 aria-label="지도에서 출발지 선택"
               >
-                📍
+                <span class="pin-button__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <path
+                      d="M12 21c-4.8-5.4-7.2-9.3-7.2-12.2A7.2 7.2 0 1 1 19.2 8.8c0 2.9-2.4 6.8-7.2 12.2Z"
+                      fill="currentColor"
+                    />
+                    <circle cx="12" cy="9" r="2.5" fill="#fff7e6" />
+                  </svg>
+                </span>
               </button>
             </div>
             <p v-if="isSearching.departure" class="hint">검색 중...</p>
@@ -70,7 +82,15 @@
                 @click="openMapPicker('arrival')"
                 aria-label="지도에서 도착지 선택"
               >
-                📍
+                <span class="pin-button__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <path
+                      d="M12 21c-4.8-5.4-7.2-9.3-7.2-12.2A7.2 7.2 0 1 1 19.2 8.8c0 2.9-2.4 6.8-7.2 12.2Z"
+                      fill="currentColor"
+                    />
+                    <circle cx="12" cy="9" r="2.5" fill="#fff7e6" />
+                  </svg>
+                </span>
               </button>
             </div>
             <p v-if="isSearching.arrival" class="hint">검색 중...</p>
@@ -785,14 +805,23 @@ async function submitForm() {
 
 <style scoped>
 .create-room {
+<<<<<<< HEAD
   --color-background: #fff8dc;
   --color-surface: #eeeff2;
   --color-border: #d7d8de;
   --color-accent-border: #f4c145;
   --color-text-strong: #2f1c03;
   --color-text-muted: #6a5f4d;
+=======
+  --color-background: #fff7e1;
+  --color-surface: #fffdf6;
+  --color-border: rgba(234, 179, 8, 0.35);
+  --color-accent-border: rgba(228, 180, 97, 0.6);
+  --color-text-strong: #3b2600;
+  --color-text-muted: #91590b;
+>>>>>>> upstream/main
   --color-button: #fdd651;
-  --color-button-text: #2f1c03;
+  --color-button-text: #3b2600;
 
   min-height: 100dvh;
   background: var(--color-background);
@@ -814,13 +843,38 @@ async function submitForm() {
   display: grid;
   gap: 8px;
   padding-bottom: 16px;
+<<<<<<< HEAD
   border-bottom: 1px solid rgba(228, 180, 97, 0.55);
+=======
+  border-bottom: 1px solid var(--color-accent-border);
+>>>>>>> upstream/main
 }
 
 .create-room__hero h1 {
   margin: 0;
   font-size: clamp(28px, 5vw, 36px);
+<<<<<<< HEAD
   color: #2b1400;
+=======
+  color: #3b2600;
+}
+.create-room__eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(149, 89, 11, 0.85);
+}
+.create-room__desc,
+.create-room__hint {
+  margin: 0;
+  color: #6b3b00;
+  line-height: 1.5;
+}
+.create-room__hint {
+  font-size: 0.9rem;
+  color: rgba(149, 89, 11, 0.85);
+>>>>>>> upstream/main
 }
 
 .form,
@@ -855,7 +909,11 @@ fieldset.field,
 }
 
 .field > span {
+<<<<<<< HEAD
   color: #7c2d12;
+=======
+  color: #a16207;
+>>>>>>> upstream/main
   font-weight: 600;
 }
 
@@ -863,10 +921,14 @@ fieldset.field,
 .field select,
 .field textarea {
   border-radius: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.45);
   padding: 0.85rem 1rem;
   background: #ffffff;
   color: #a16207;
+<<<<<<< HEAD
+=======
+  font-size: 0.92rem;
+>>>>>>> upstream/main
   font-family: inherit;
   transition: border 0.2s ease;
 }
@@ -913,7 +975,7 @@ fieldset.field,
 }
 
 .suggestion-list li button:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(253, 214, 81, 0.15);
 }
 
 .input-with-action {
@@ -934,17 +996,34 @@ fieldset.field,
   height: 2.3rem;
   border-radius: 50%;
   border: none;
+<<<<<<< HEAD
   background: transparent;
   color: #a16207;
+=======
+  background: rgba(253, 214, 81, 0.3);
+  color: #b45309;
+>>>>>>> upstream/main
   font-weight: 600;
   cursor: pointer;
+}
+.pin-button__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.pin-button__icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .time-trigger {
   width: 100%;
   border-radius: 18px;
-  border: 1.5px solid rgba(0, 0, 0, 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #fdfbf4 100%);
+  border: 1.5px solid rgba(234, 179, 8, 0.45);
+  background: #fffdf6;
   padding: 0.85rem 1rem;
   display: flex;
   align-items: center;
@@ -994,9 +1073,15 @@ fieldset.field,
 }
 
 .primary-button {
+<<<<<<< HEAD
   background: rgba(250, 204, 21, 0.18);
   color: #7c2d12;
   border: 1px solid rgba(250, 204, 21, 0.45);
+=======
+  background: var(--color-button);
+  color: var(--color-button-text);
+  border: 1px solid rgba(234, 179, 8, 0.6);
+>>>>>>> upstream/main
   box-shadow: none;
 }
 
@@ -1088,14 +1173,20 @@ fieldset.field,
   flex-wrap: wrap;
 }
 
+<<<<<<< HEAD
 .fare-upload {
   margin-top: 1rem;
 }
 
 
+=======
+>>>>>>> upstream/main
 @media (max-width: 600px) {
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+.fare-upload {
+  margin-top: 1rem;
 }
 </style>

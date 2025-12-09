@@ -2,15 +2,27 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    >
     <title>GoGoTaxi</title>
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" href="./favicon.ico" />
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png" />
     <meta name="theme-color" content="#fdd651" />
+    <meta name="theme-color" content="#fdd651" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#fdd651" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="꼬꼬택" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background-color: #fff7e1;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>

@@ -34,6 +34,8 @@
           <p class="fare-ocr__title">{{ uploadTitle }}</p>
           <small class="fare-ocr__hint">{{ uploadHint }}</small>
         </div>
+      </div>
+      <div class="fare-ocr__controls">
         <a
           v-if="uploadActionLink"
           class="fare-ocr__deeplink"
@@ -43,8 +45,6 @@
         >
           {{ uploadActionLabel }}
         </a>
-      </div>
-      <div class="fare-ocr__controls">
         <label class="fare-ocr__upload">
           {{ uploadButtonLabel }}
           <input type="file" accept="image/*" @change="handleFileChange" />
@@ -317,10 +317,11 @@ async function handleFileChange(event: Event) {
   background: rgba(250, 204, 21, 0.18);
   color: #7c2d12;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 0.95rem;
   cursor: pointer;
   box-shadow: none;
   transition: background 0.2s ease, color 0.2s ease;
+  width: 100%;
 }
 
 .fare-ocr__upload:hover {
@@ -329,6 +330,28 @@ async function handleFileChange(event: Event) {
 }
 .fare-ocr__upload input {
   display: none;
+}
+
+.fare-ocr__deeplink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.85rem 1rem;
+  border-radius: 18px;
+  border: none;
+  background: #fdd651;
+  color: #3b2600;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  width: 100%;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.fare-ocr__deeplink:hover {
+  background: #fcd34d;
+  color: #5c1a05;
 }
 
 .fare-ocr__file {

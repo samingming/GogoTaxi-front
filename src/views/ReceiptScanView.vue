@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="receipt-scan">
     <header class="receipt-scan__header">
       <div class="receipt-scan__header-top">
