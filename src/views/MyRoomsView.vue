@@ -3,9 +3,6 @@
     <header class="my-rooms__hero">
       <p class="my-rooms__eyebrow">참여 중인 방</p>
       <h1>나의 방</h1>
-      <p class="my-rooms__desc">
-        방찾기에서 합류한 방이 여기에 정리돼요. 좌석을 확정하거나 방 세부 정보로 바로 들어갈 수 있어요.
-      </p>
       <div class="hero-actions">
         <button
           type="button"
