@@ -390,9 +390,10 @@ onMounted(() => {
 
 <style scoped>
 .settings-wrapper {
-  min-height: 100vh;
-  background: #3a2e20;
-  padding: 2rem 1.25rem 4rem;
+  min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
+  background: #fff7e1;
+  color: #3b2600;
+  padding: clamp(18px, 5vw, 38px) clamp(14px, 5vw, 32px) clamp(18px, 4vh, 32px);
   font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
   display: flex;
   justify-content: center;
@@ -400,18 +401,18 @@ onMounted(() => {
 }
 
 .settings-container {
-  width: min(640px, 100%);
+  width: min(720px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.8rem;
+  gap: 18px;
 }
 
 .settings-header {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 1rem;
+  gap: 12px;
 }
 
 .back-button {
@@ -438,9 +439,9 @@ onMounted(() => {
 
 .settings-title {
   margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #eeeff2;
+  font-size: clamp(24px, 5vw, 28px);
+  font-weight: 800;
+  color: #2b1400;
   justify-self: center;
   text-align: center;
 }
@@ -453,12 +454,14 @@ onMounted(() => {
 
 .settings-card {
   width: 100%;
-  background: #eeeff2;
+  background: #ffffff;
+  border: 1px solid #f3d193;
   border-radius: 24px;
-  padding: 2.05rem 1.8rem 2.4rem;
+  padding: clamp(18px, 4vw, 24px) clamp(16px, 4vw, 22px) clamp(20px, 4vw, 26px);
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.25rem;
+  box-shadow: 0 10px 30px rgba(255, 202, 104, 0.18);
 }
 
 .info-section {
@@ -470,34 +473,34 @@ onMounted(() => {
 .section-title {
   font-size: 1.06rem;
   font-weight: 700;
-  color: #3f3d48;
+  color: #a16207;
   margin: 0;
 }
 
 .info-list {
-  background: #eeeff2;
+  background: #fffdf6;
   border-radius: 18px;
-  border: 1px solid rgba(47, 47, 51, 0.05);
-  padding: 1.4rem 1.4rem 1.5rem;
+  border: 1px solid rgba(234, 179, 8, 0.28);
+  padding: 1.1rem 1.1rem 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: 1rem;
 }
 
 .info-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1.1rem;
   font-size: 0.98rem;
-  color: #2f2f33;
-  padding: 0.35rem 0;
+  color: #3b2600;
+  padding: 0.2rem 0;
 }
 
 .info-label {
-  flex-basis: 95px;
-  font-weight: 600;
-  color: #5d5a66;
+  flex-basis: 92px;
+  font-weight: 700;
+  color: #c2410c;
 }
 
 .info-content {
@@ -514,34 +517,37 @@ onMounted(() => {
 
 .info-text {
   flex: 1;
-  text-align: right;
+  text-align: left;
   font-weight: 700;
-  color: #2f2f33;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #3b2600;
+  white-space: normal;
+  word-break: keep-all;
+  line-height: 1.35;
+  min-width: 0;
 }
 
 .info-action {
   border: none;
   border-radius: 999px;
-  background: #fdd651;
-  color: #4e2d04;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
   font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.4rem 0.85rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
   cursor: pointer;
-  transition: transform 0.18s ease;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.18s ease;
 }
 
 .info-action--ghost {
-  background: #fdd651;
-  color: #4e2d04;
-  border: none;
+  background: rgba(250, 204, 21, 0.12);
+  color: #a16207;
+  border: 1px solid rgba(234, 179, 8, 0.35);
 }
 
 .info-action:hover {
   transform: translateY(-1px);
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .info-action:focus-visible {
@@ -550,9 +556,10 @@ onMounted(() => {
 }
 
 .info-item--editing {
-  background: rgba(255, 241, 216, 0.6);
+  background: rgba(255, 241, 216, 0.9);
   border-radius: 14px;
-  padding: 1rem 0.75rem;
+  padding: 0.8rem 0.7rem;
+  border: 1px solid rgba(234, 179, 8, 0.35);
 }
 
 .info-editor {
@@ -569,13 +576,14 @@ onMounted(() => {
   padding: 0.6rem 0.75rem;
   font-size: 0.95rem;
   background: #fff;
-  color: #2f2f33;
-  transition: border 0.2s ease;
+  color: #3b2600;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
 .info-input:focus {
   outline: none;
   border-color: #f0a545;
+  box-shadow: 0 0 0 3px rgba(240, 165, 69, 0.2);
 }
 
 .info-error {
@@ -586,25 +594,25 @@ onMounted(() => {
 
 .editor-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .editor-button {
   flex: 1;
-  border: none;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: 10px;
-  padding: 0.55rem 0.75rem;
+  padding: 0.5rem 0.65rem;
   font-size: 0.9rem;
-  font-weight: 600;
-  background: #fdd651;
-  color: #4e2d04;
+  font-weight: 700;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
   cursor: pointer;
-  transition: transform 0.18s ease;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.18s ease;
 }
 
 .editor-button--primary {
-  background: #fdd651;
-  color: #4e2d04;
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .editor-button:hover {
@@ -620,28 +628,31 @@ onMounted(() => {
   width: 100%;
   border: none;
   border-radius: 18px;
-  padding: 1rem 1.2rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ff9c8b 0%, #ff775f 100%);
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2b1400;
+  background: rgba(250, 204, 21, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.45);
   cursor: pointer;
-  transition: transform 0.18s ease;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.18s ease;
 }
 
 .logout-button:hover {
   transform: translateY(-2px);
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .logout-button:focus-visible {
-  outline: 3px solid rgba(255, 119, 95, 0.45);
+  outline: 3px solid rgba(203, 128, 38, 0.4);
   outline-offset: 3px;
 }
 
 .copy-feedback {
   margin: -0.35rem 0 0.35rem;
   font-size: 0.82rem;
-  color: #a0641b;
+  color: #a16207;
   text-align: right;
 }
 
@@ -658,7 +669,7 @@ onMounted(() => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(47, 47, 51, 0.45);
+  background: rgba(59, 38, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -670,22 +681,23 @@ onMounted(() => {
   width: min(320px, 100%);
   background: #ffffff;
   border-radius: 24px;
-  padding: 1.8rem 1.6rem 1.4rem;
+  padding: 1.5rem 1.4rem 1.2rem;
   text-align: center;
+  border: 1px solid #f3d193;
 }
 
 .alert-card h3 {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 700;
-  color: #2f2f33;
+  color: #2b1400;
 }
 
 .alert-card p {
   margin: 0.9rem 0 1.6rem;
   font-size: 0.96rem;
   line-height: 1.5;
-  color: #5a5a5f;
+  color: #5a3a0c;
 }
 
 .alert-actions {
@@ -695,20 +707,20 @@ onMounted(() => {
 
 .alert-button {
   flex: 1;
-  border: none;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: 999px;
   padding: 0.65rem 0.5rem;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  background: #fdd651;
-  color: #4e2d04;
-  transition: transform 0.18s ease;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.18s ease;
 }
 
 .alert-button--primary {
-  background: #fdd651;
-  color: #4e2d04;
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .alert-button:hover {
@@ -759,11 +771,11 @@ onMounted(() => {
   }
 
   .settings-container {
-    width: min(640px, 100%);
+    width: min(720px, 100%);
   }
 
   .settings-card {
-    padding: 2.6rem 2.4rem 2.7rem;
+    padding: 2rem 1.8rem 2.2rem;
   }
 
   .info-label {

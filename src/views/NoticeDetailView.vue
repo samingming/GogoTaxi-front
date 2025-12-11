@@ -1,10 +1,7 @@
-<template>
+﻿<template>
   <section v-if="notice" class="detail">
     <header class="detail__header">
       <button class="detail__back" type="button" @click="goBack">목록으로</button>
-      <span class="detail__badge" :class="`badge--${notice.type}`">
-        {{ badgeLabel(notice.type) }}
-      </span>
       <time :datetime="notice.date">{{ formatFullDate(notice.date) }}</time>
       <h1>{{ notice.title }}</h1>
     </header>
@@ -18,7 +15,7 @@
   <section v-else class="detail detail--empty">
     <header class="detail__header">
       <h1>공지사항을 찾을 수 없어요.</h1>
-      <button class="detail__back" type="button" @click="goBack">← 목록으로</button>
+      <button class="detail__back" type="button" @click="goBack">목록으로</button>
     </header>
   </section>
 </template>
@@ -34,8 +31,8 @@ const router = useRouter()
 const fallbackNotice: Notice = {
   id: 'fallback',
   title: '공지 정보를 찾을 수 없습니다.',
-  summary: '요청하신 공지를 찾을 수 없습니다.',
-  content: ['다시 공지 목록에서 확인해 주세요.'],
+  summary: '선택한 공지사항을 불러올 수 없습니다.',
+  content: ['다시 공지사항 목록에서 확인해 주세요.'],
   date: '',
   type: 'info',
 }
@@ -54,6 +51,7 @@ const notice = computed<Notice>(() => {
   return found
 })
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function badgeLabel(type: NoticeType) {
   switch (type) {
     case 'update':
@@ -61,7 +59,7 @@ function badgeLabel(type: NoticeType) {
     case 'maintenance':
       return '점검'
     default:
-      return '안내'
+      return '공지'
   }
 }
 
@@ -70,7 +68,7 @@ function formatFullDate(dateISO: string) {
   const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}년 ${month}월 ${day}일 (${weekday})`
+  return `${date.getFullYear()}.${month}.${day} (${weekday})`
 }
 
 function goBack() {
@@ -80,68 +78,57 @@ function goBack() {
 
 <style scoped>
 .detail {
-  padding: clamp(96px, 14vh, 140px) clamp(18px, 5vw, 48px) clamp(80px, 12vh, 140px);
-  background: #3a2e20;
-  min-height: calc(100dvh - var(--header-h));
+  padding: clamp(28px, 6vw, 60px) clamp(18px, 5vw, 54px) clamp(28px, 5vh, 48px);
+  background: #fff7e1;
+  color: #3b2600;
+  min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
   display: grid;
-  gap: clamp(24px, 4vw, 36px);
+  gap: 18px;
+  justify-content: center;
 }
 .detail__header {
   display: grid;
-  gap: 10px;
-  color: #f8f1e4;
-  max-width: 900px;
+  gap: 8px;
+  color: #3b2600;
+  width: min(720px, 100%);
 }
 .detail__back {
   justify-self: flex-start;
   border: none;
-  background: none;
-  color: #fdd651;
+  background: transparent;
+  color: #a16207;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   padding: 4px 0;
 }
-.detail__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: max-content;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2f1c00;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
-}
-.badge--update,
-.badge--maintenance {
-  background: #fdd651;
-}
-.badge--info {
-  background: linear-gradient(135deg, #10b981, #34d399);
-  color: #fff;
+.detail__back:focus-visible {
+  outline: 3px solid rgba(203, 128, 38, 0.35);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 .detail time {
   font-size: 13px;
-  color: rgba(255, 244, 220, 0.7);
+  color: #a16207;
 }
 .detail h1 {
   margin: 0;
-  font-size: clamp(26px, 5vw, 34px);
+  font-size: clamp(24px, 5vw, 28px);
+  font-weight: 800;
+  color: #2b1400;
 }
 .detail__body {
-  max-width: 900px;
+  width: min(720px, 100%);
   display: grid;
-  gap: 18px;
-  padding: clamp(22px, 4vw, 34px);
-  border-radius: 28px;
+  gap: 14px;
+  padding: clamp(18px, 4vw, 24px);
+  border-radius: 24px;
   background: #ffffff;
-  border: 1px solid rgba(120, 92, 68, 0.12);
-  box-shadow: 0 30px 60px rgba(20, 12, 6, 0.18);
-  color: #4f4338;
-  line-height: 1.8;
-  font-size: 16px;
+  border: 1px solid #f3d193;
+  box-shadow: 0 10px 30px rgba(255, 202, 104, 0.18);
+  color: #3b2600;
+  line-height: 1.6;
+  font-size: 15px;
 }
 .detail--empty {
   align-content: center;
@@ -151,3 +138,5 @@ function goBack() {
   justify-items: center;
 }
 </style>
+
+

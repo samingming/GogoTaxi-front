@@ -3,7 +3,7 @@
     <div class="history-container">
       <header class="history-header">
         <button type="button" class="back-button" @click="goBack" :aria-label="labels.back">
-          <img :src="arrowBackIcon" alt="" class="back-icon" aria-hidden="true" />
+          <img :src="arrowBackIconUrl" alt="" class="back-icon" aria-hidden="true" />
         </button>
         <h1 class="history-title">{{ labels.title }}</h1>
         <span class="header-spacer" aria-hidden="true"></span>
@@ -91,11 +91,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import arrowBackIcon from '@/assets/arrowback.svg'
 import { fetchRideHistory, type RideHistoryEntry } from '@/services/rideHistoryService'
 import { fetchMyReviews } from '@/services/reviewService'
+import { useRoomMembership, type CompletedRoomEntry } from '@/composables/useRoomMembership'
 
 type DisplayRide = {
   id: string
@@ -110,10 +111,12 @@ type DisplayRide = {
 }
 
 const router = useRouter()
+const { completedRooms } = useRoomMembership()
 const rides = ref<DisplayRide[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const stars = [1, 2, 3, 4, 5]
+const arrowBackIconUrl: string = arrowBackIcon
 
 const labels = {
   back: '마이페이지로 돌아가기',
@@ -158,20 +161,50 @@ function formatFare(amount: number) {
   return `${currencyFormatter.format(normalized)}원`
 }
 
-function mapHistoryToRide(entry: RideHistoryEntry, reviewMap: Map<string, { rating: number; comment?: string }>): DisplayRide {
+function mapHistoryToRide(
+  entry: RideHistoryEntry,
+  reviewMap: Map<string, { rating: number; comment?: string }>,
+): DisplayRide {
   const start = entry.room?.departureTime ? new Date(entry.room.departureTime) : null
   const end = entry.settledAt ? new Date(entry.settledAt) : null
   const review = reviewMap.get(entry.roomId)
   return {
     id: entry.id,
     roomId: entry.roomId,
-    date: formatDate(start ?? end),
+    date: formatDate(end ?? start),
     time: formatTimeRange(start, end),
     origin: entry.room?.departureLabel ?? '출발지 정보 없음',
     destination: entry.room?.arrivalLabel ?? '도착지 정보 없음',
     fare: formatFare(entry.actualFare ?? entry.netAmount ?? 0),
     rating: review?.rating ?? null,
     comment: review?.comment ?? '',
+  }
+}
+
+function mapCompletedRoomEntry(entry: CompletedRoomEntry): DisplayRide {
+  const completedDate = entry.completedAt ? new Date(entry.completedAt) : null
+  const total = entry.settlementSnapshot?.analysis?.totalAmount ?? 0
+  return {
+    id: `local-${entry.roomId}-${entry.completedAt}`,
+    roomId: entry.roomId,
+    date: formatDate(completedDate),
+    time: formatTimeRange(null, completedDate),
+    origin: entry.roomSnapshot?.departure?.label ?? '출발지 정보 없음',
+    destination: entry.roomSnapshot?.arrival?.label ?? '도착지 정보 없음',
+    fare: total > 0 ? formatFare(total) : '확인되지 않음',
+    rating: null,
+    comment: entry.settlementSnapshot?.analysis?.summary || '정산 완료',
+  }
+}
+
+function mergeLocalHistory() {
+  if (!Array.isArray(rides.value)) return
+  const existing = new Set(rides.value.map(ride => ride.roomId))
+  const extras = completedRooms.value
+    .filter(entry => !existing.has(entry.roomId))
+    .map(entry => mapCompletedRoomEntry(entry))
+  if (extras.length) {
+    rides.value = [...extras, ...rides.value]
   }
 }
 
@@ -189,6 +222,7 @@ const loadRideHistory = async () => {
       reviewMap.set(review.roomId, { rating: review.rating, comment: review.comment })
     })
     rides.value = histories.map(history => mapHistoryToRide(history, reviewMap))
+    mergeLocalHistory()
   } catch (error) {
     console.error('Failed to load ride history', error)
     errorMessage.value = '이용 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'
@@ -201,6 +235,14 @@ const loadRideHistory = async () => {
 onMounted(() => {
   loadRideHistory()
 })
+
+watch(
+  () => completedRooms.value,
+  () => {
+    mergeLocalHistory()
+  },
+  { deep: true },
+)
 
 const goBack = () => {
   router.back()
@@ -217,35 +259,38 @@ const goToReview = (roomId: string) => {
 
 <style scoped>
 .history-wrapper {
-  min-height: 100vh;
-  background: #3a2e20;
+  min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
+  background: #fff7e1;
+  color: #3b2600;
   font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
-  padding: 2rem 1.25rem 4rem;
+  padding: clamp(28px, 6vw, 60px) clamp(18px, 5vw, 54px) clamp(28px, 5vh, 48px);
   display: flex;
   justify-content: center;
   width: 100%;
 }
 
 .history-container {
-  width: min(640px, 100%);
+  width: min(720px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.8rem;
+  gap: 28px;
+  min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64pxpx));
 }
 
 .history-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 1rem;
+  gap: 12px;
+  justify-items: center;
 }
 
 .history-title {
   margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #eeeff2;
+  font-size: clamp(24px, 5vw, 28px);
+  font-weight: 800;
+  color: #2b1400;
   justify-self: center;
   text-align: center;
 }
@@ -254,6 +299,7 @@ const goToReview = (roomId: string) => {
   width: 24px;
   height: 24px;
   display: block;
+  justify-self: end;
 }
 
 .back-button {
@@ -264,6 +310,7 @@ const goToReview = (roomId: string) => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  justify-self: start;
 }
 
 .back-button:focus-visible {
@@ -282,11 +329,47 @@ const goToReview = (roomId: string) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex: 1;
+}
+
+.history-status {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: #a16207;
+}
+
+.history-status--error {
+  color: #a16207;
+}
+
+.status-button {
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: rgba(250, 204, 21, 0.18);
+  color: #a16207;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.status-button:hover {
+  background: rgba(250, 204, 21, 0.32);
+  color: #7c2d12;
 }
 
 .history-card {
-  background: #eeeff2;
-  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #f3d193;
+  border-radius: 24px;
   padding: 1.5rem 1.45rem 1.3rem;
   display: flex;
   flex-direction: column;
@@ -313,13 +396,13 @@ const goToReview = (roomId: string) => {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #2f2f33;
+  color: #3b2600;
 }
 
 .ride-date {
   margin: 0.2rem 0 0;
   font-size: 0.88rem;
-  color: #6a6a70;
+  color: #a16207;
 }
 
 .ride-details {
@@ -334,21 +417,21 @@ const goToReview = (roomId: string) => {
   justify-content: space-between;
   gap: 0.75rem;
   font-size: 0.95rem;
-  color: #3a3a40;
+  color: #3b2600;
 }
 
 .ride-row dt {
   font-weight: 600;
-  color: #6a6a70;
+  color: #c2410c;
 }
 
 .ride-row.total dt {
-  color: #2f2f33;
+  color: #2b1400;
 }
 
 .ride-row.total dd {
   font-weight: 700;
-  color: #3a3a40;
+  color: #3b2600;
 }
 
 .ride-row dd {
