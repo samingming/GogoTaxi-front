@@ -117,6 +117,7 @@
           호출 앱에서 캡처한 화면을 올리면 기사님 이름·차량 번호·차종을 자동으로 채워 팀원에게 공유하고 예치금도 자동으로 잡아줘요.
         </p>
         <div
+          v-if="!dispatchUploadComplete"
           class="vision-drop"
           :class="{
             'vision-drop--hover': dispatchUploadHover,
@@ -135,7 +136,7 @@
             @change="onDispatchFileChange"
           />
           <p class="vision-drop__title">
-            {{ dispatchUploadBusy ? '제미나이가 정보를 읽는 중...' : '여기에 스크린샷을 끌어놓거나 클릭해서 선택하세요' }}
+            {{ dispatchUploadBusy ? 'Gemini가 정보를 읽는 중...' : '여기에 스크린샷을 끌어놓거나 클릭해서 선택하세요' }}
           </p>
           <button
             type="button"
@@ -265,6 +266,7 @@ const rideRequesting = ref(false)
 const ridePolling = ref<ReturnType<typeof setInterval> | null>(null)
 const ridePollingBusy = ref(false)
 const dispatchAnalysis = ref<DispatchAnalysis | null>(null)
+const dispatchUploadComplete = computed(() => Boolean(dispatchAnalysis.value))
 const dispatchUploadBusy = ref(false)
 const dispatchUploadHover = ref(false)
 const dispatchUploadMessage = ref('')

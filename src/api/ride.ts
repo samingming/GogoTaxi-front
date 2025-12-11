@@ -234,11 +234,15 @@ function pickStage(value: unknown): RideStage | undefined {
 
 function extractRideStatePayload(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw
-  if ('rideState' in raw && typeof (raw as any).rideState === 'object') {
-    return (raw as any).rideState
+  const candidate = raw as {
+    rideState?: unknown
+    ride_state?: unknown
   }
-  if ('ride_state' in raw && typeof (raw as any).ride_state === 'object') {
-    return (raw as any).ride_state
+  if (candidate.rideState && typeof candidate.rideState === 'object') {
+    return candidate.rideState
+  }
+  if (candidate.ride_state && typeof candidate.ride_state === 'object') {
+    return candidate.ride_state
   }
   return raw
 }
