@@ -142,6 +142,7 @@ const router = createRouter({
 
 const ACCESS_KEYS = ['gogotaxi_access_token', 'gogotaxi_token', 'auth_token']
 const REFRESH_KEYS = ['gogotaxi_refresh_token', 'auth_refresh_token']
+const USER_KEYS = ['auth_user', 'gogotaxi_user']
 
 function getLocalToken(keys: string[]) {
   if (typeof window === 'undefined') return null
@@ -152,8 +153,26 @@ function getLocalToken(keys: string[]) {
   return null
 }
 
+function hasStoredUser() {
+  if (typeof window === 'undefined') return false
+  for (const key of USER_KEYS) {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) continue
+    try {
+      const parsed = JSON.parse(raw) as { id?: string | number }
+      if (parsed?.id !== undefined && parsed?.id !== null && `${parsed.id}`.trim()) {
+        return true
+      }
+    } catch {
+      continue
+    }
+  }
+  return false
+}
+
 function isAuthenticated() {
-  return Boolean(getLocalToken(ACCESS_KEYS) || getLocalToken(REFRESH_KEYS))
+  const hasToken = Boolean(getLocalToken(ACCESS_KEYS) || getLocalToken(REFRESH_KEYS))
+  return hasToken && hasStoredUser()
 }
 
 router.beforeEach((to, from, next) => {

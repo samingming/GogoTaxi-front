@@ -129,6 +129,7 @@ type RoomCard = {
   statusLabel: string
   statusKey: string
   role?: string
+  isHost: boolean
   dispatchSnapshot?: JoinedRoomEntry['dispatchSnapshot']
   isHost: boolean
   canSettle: boolean
@@ -182,6 +183,7 @@ const roomCards = computed<RoomCard[]>(() =>
         statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
         statusKey,
         role: entry.role,
+        isHost: isHostRole(entry.role),
         dispatchSnapshot: entry.dispatchSnapshot,
         isHost,
         canSettle,
@@ -189,6 +191,12 @@ const roomCards = computed<RoomCard[]>(() =>
       }
     }),
 )
+
+function isHostRole(role?: string) {
+  if (!role) return false
+  const normalized = role.trim().toLowerCase()
+  return normalized.includes('host') || normalized.includes('??')
+}
 
 function formatJoinedAt(iso: string) {
   const date = new Date(iso)
@@ -202,7 +210,7 @@ function goFindRoom() {
 
 function goToSettlement(roomId: string) {
   if (!roomId) return
-  router.push({ name: 'receipt-scan', query: { roomId } })
+  router.push({ name: 'split-payment', query: { roomId } })
 }
 
 function resolveErrorMessage(err: unknown, fallback: string) {

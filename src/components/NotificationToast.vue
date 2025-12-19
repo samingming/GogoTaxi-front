@@ -2,7 +2,17 @@
   <Teleport to="body">
     <div class="toast-stack" aria-live="polite" aria-atomic="true">
       <transition-group name="toast" tag="div">
-        <article v-for="toast in toasts" :key="toast.internalId" class="toast-item">
+        <article
+          v-for="toast in toasts"
+          :key="toast.internalId"
+          class="toast-item"
+          :class="{ 'toast-item--swiping': toast.isSwiping }"
+          :style="toastStyle(toast)"
+          @pointerdown="onSwipeStart($event, toast)"
+          @pointermove="onSwipeMove($event, toast)"
+          @pointerup="onSwipeEnd($event, toast)"
+          @pointercancel="onSwipeEnd($event, toast)"
+        >
           <div class="toast-header">
             <span class="toast-title">{{ toast.title }}</span>
             <time class="toast-time">{{ toast.relative }}</time>
@@ -30,7 +40,19 @@ const formatRelative = (iso: string) => {
 }
 
 const store = useNotificationStore()
-const toasts = reactive<{ internalId: string; id: string; title: string; body: string; createdAt: string; relative: string }[]>([])
+const toasts = reactive<{
+  internalId: string
+  id: string
+  title: string
+  body: string
+  createdAt: string
+  relative: string
+  offsetX: number
+  isSwiping: boolean
+  startX: number
+  startY: number
+  pointerId: number | null
+}[]>([])
 
 const maxVisible = 3
 const visibleDuration = 4500
@@ -47,11 +69,68 @@ const showNext = () => {
     body: next.body,
     createdAt: next.createdAt,
     relative: formatRelative(next.createdAt),
+      offsetX: 0,
+    isSwiping: false,
+    startX: 0,
+    startY: 0,
+    pointerId: null,
   })
   window.setTimeout(() => {
     const index = toasts.findIndex((toast) => toast.internalId === internalId)
     if (index >= 0) toasts.splice(index, 1)
   }, visibleDuration)
+}
+
+const swipeThreshold = 60
+
+function onSwipeStart(event: PointerEvent, toast: (typeof toasts)[number]) {
+  toast.pointerId = event.pointerId
+  toast.startX = event.clientX
+  toast.startY = event.clientY
+  toast.isSwiping = false
+  toast.offsetX = 0
+  const target = event.currentTarget as HTMLElement | null
+  target?.setPointerCapture?.(event.pointerId)
+}
+
+function onSwipeMove(event: PointerEvent, toast: (typeof toasts)[number]) {
+  if (toast.pointerId !== event.pointerId) return
+  const dx = event.clientX - toast.startX
+  const dy = event.clientY - toast.startY
+  if (!toast.isSwiping) {
+    if (Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)) {
+      toast.isSwiping = true
+    } else {
+      return
+    }
+  }
+  toast.offsetX = dx
+}
+
+function onSwipeEnd(event: PointerEvent, toast: (typeof toasts)[number]) {
+  if (toast.pointerId !== event.pointerId) return
+  const shouldDismiss = Math.abs(toast.offsetX) > swipeThreshold
+  toast.pointerId = null
+  if (shouldDismiss) {
+    removeToast(toast.internalId)
+    return
+  }
+  toast.offsetX = 0
+  toast.isSwiping = false
+}
+
+function removeToast(internalId: string) {
+  const index = toasts.findIndex((item) => item.internalId === internalId)
+  if (index >= 0) toasts.splice(index, 1)
+}
+
+function toastStyle(toast: (typeof toasts)[number]) {
+  if (!toast.offsetX) return {}
+  const opacity = Math.max(0.4, 1 - Math.abs(toast.offsetX) / 160)
+  return {
+    transform: `translateX(${toast.offsetX}px)`,
+    opacity,
+  }
 }
 
 const queueLength = computed(() => store.queue.length)
@@ -103,6 +182,10 @@ onUnmounted(() => {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(0, 0, 0, 0.05);
   pointer-events: auto;
+  touch-action: pan-y;
+}
+.toast-item--swiping {
+  transition: none;
 }
 
 .toast-header {
