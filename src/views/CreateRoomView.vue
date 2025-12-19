@@ -135,6 +135,85 @@
           />
         </div>
 
+        <section class="seat-picker">
+          <header class="seat-picker__header">
+            <p class="seat-picker__label">좌석 선택</p>
+            <h2>방장이 먼저 자리를 골라요</h2>
+            <p>
+              방을 만들자마자 해당 좌석으로 배정됩니다.
+            </p>
+          </header>
+
+          <div class="seat-picker__layout" role="radiogroup" aria-label="좌석 선택">
+            <svg class="seat-picker__car" viewBox="0 0 200 400" aria-hidden="true">
+              <defs>
+                <linearGradient id="create-room-car-body" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#fdfbf3" />
+                  <stop offset="100%" stop-color="#f4f2ea" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M50 10 Q100 -10 150 10 L180 80 L180 320 L150 390 Q100 410 50 390 L20 320 L20 80 Z"
+                fill="url(#create-room-car-body)"
+                stroke="#d9d4c7"
+                stroke-width="3"
+              />
+              <rect x="52" y="70" width="96" height="90" rx="18" fill="#fff" stroke="#e6e0d1" />
+              <rect x="52" y="240" width="96" height="90" rx="18" fill="#fff" stroke="#e6e0d1" />
+              <line x1="100" y1="70" x2="100" y2="160" stroke="#efe4c5" stroke-width="3" />
+              <line x1="84" y1="240" x2="84" y2="330" stroke="#efe4c5" stroke-width="3" />
+              <line x1="116" y1="240" x2="116" y2="330" stroke="#efe4c5" stroke-width="3" />
+              <rect x="30" y="120" width="140" height="30" rx="10" fill="#efe7d4" />
+              <rect x="30" y="250" width="140" height="30" rx="10" fill="#efe7d4" />
+            </svg>
+            <div class="seat-picker__seats">
+              <button
+                v-for="seat in seats"
+                :key="seat.number"
+                type="button"
+                class="seat-picker__marker"
+                :class="{ 'seat-picker__marker--active': seat.number === selectedSeat }"
+                :style="seatStyle(seat)"
+                :aria-pressed="seat.number === selectedSeat"
+                @click="selectSeat(seat.number)"
+              >
+                <span
+                  v-if="seatGender(seat.number) === 'male'"
+                  class="seat-picker__icon seat-picker__icon--male"
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <circle cx="8.5" cy="12.5" r="5.5" />
+                    <path d="M12.5 8.5 L19 2" />
+                    <path d="M14.2 2 H19 V6.8" />
+                  </svg>
+                </span>
+                <span
+                  v-else-if="seatGender(seat.number) === 'female'"
+                  class="seat-picker__icon seat-picker__icon--female"
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <circle cx="12" cy="9" r="5.5" />
+                    <path d="M12 14.5 V22" />
+                    <path d="M9 18 H15" />
+                  </svg>
+                </span>
+                <span v-else>{{ seat.number }}</span>
+              </button>
+            </div>
+          </div>
+
+          <p class="seat-picker__helper" :class="{ 'seat-picker__helper--selected': selectedSeat }">
+            <template v-if="selectedSeat">
+              {{ selectedSeat }}번 좌석을 선택했어요. 방을 생성하면 해당 좌석으로 바로 배정됩니다.
+            </template>
+            <template v-else>
+              아직 좌석을 고르지 않았어요. 버튼을 눌러 원하는 좌석을 선택해 주세요.
+            </template>
+          </p>
+        </section>
+
         <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
         <footer class="actions">
@@ -181,12 +260,13 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import TimePicker from '@/components/TimePicker.vue'
 import FareInfoCard from '@/components/FareInfoCard.vue'
 import { loadKakaoMaps, type KakaoNamespace } from '@/services/kakaoMaps'
-import { createRoom, type CreateRoomPayload } from '@/api/rooms'
+import { createRoom, joinRoomFromApi, type CreateRoomPayload } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
+import { findUserById, getCurrentUser } from '@/services/auth'
 
 type FieldKind = 'departure' | 'arrival'
 
@@ -223,11 +303,18 @@ const DEFAULT_CENTER = { lat: 37.5665, lng: 126.978 }
 const DEFAULT_ROOM_CAPACITY = 4
 const minuteOptions = ['00', '10', '20', '30', '40', '50'] as const
 type MinuteOption = (typeof minuteOptions)[number]
+type SeatInfo = { number: number; x: number; y: number }
+const seats: SeatInfo[] = [
+  { number: 1, x: 63, y: 28 },
+  { number: 2, x: 28, y: 68 },
+  { number: 3, x: 50, y: 68 },
+  { number: 4, x: 72, y: 68 },
+]
 function isMinuteOption(value: string): value is MinuteOption {
   return (minuteOptions as readonly string[]).includes(value)
 }
 const router = useRouter()
-const { joinRoom: rememberRoom } = useRoomMembership()
+const { joinRoom: rememberRoom, updateSeat } = useRoomMembership()
 const STORAGE_KEY = 'create-room-draft-v1'
 
 const form = reactive({
@@ -257,6 +344,12 @@ const timePickerVisible = ref(false)
 const timePickerPeriod = ref<'오전' | '오후'>('오전')
 const timePickerHour = ref('08')
 const timePickerMinute = ref<MinuteOption>('00')
+const selectedSeat = ref<number | null>(null)
+const currentUserGender = computed(() => {
+  const userId = getCurrentUser()?.id ?? ''
+  if (!userId) return ''
+  return findUserById(userId)?.gender ?? ''
+})
 setTimePickerState(form.departureTime)
 
 const errorMessage = ref('')
@@ -278,7 +371,11 @@ const isFareDetermined = computed(
   () => recognizedFare.value !== null && !farePending.value,
 )
 
-const isValid = computed(() => hasRouteAndTime.value && isFareDetermined.value)
+const hasSelectedSeat = computed(() => selectedSeat.value !== null)
+
+const isValid = computed(
+  () => hasRouteAndTime.value && isFareDetermined.value && hasSelectedSeat.value,
+)
 
 type DraftPayload = {
   title: string
@@ -289,6 +386,7 @@ type DraftPayload = {
   departureTime: string
   recognizedFare: number | null
   farePending: boolean
+  selectedSeat: number | null
 }
 
 function serializeDraft(): DraftPayload {
@@ -301,6 +399,7 @@ function serializeDraft(): DraftPayload {
     departureTime: form.departureTime,
     recognizedFare: recognizedFare.value,
     farePending: farePending.value,
+    selectedSeat: selectedSeat.value,
   }
 }
 
@@ -389,6 +488,11 @@ function restoreDraft() {
     if (typeof parsed.farePending === 'boolean') {
       farePending.value = parsed.farePending
     }
+    if (typeof parsed.selectedSeat === 'number' && Number.isFinite(parsed.selectedSeat)) {
+      selectedSeat.value = parsed.selectedSeat
+    } else {
+      selectedSeat.value = null
+    }
   } catch (error) {
     console.warn('Failed to restore create-room draft', error, raw)
   }
@@ -404,10 +508,76 @@ watch(
     arrivalQuery,
     recognizedFare,
     farePending,
+    selectedSeat,
   ],
   saveDraft,
   { deep: true },
 )
+
+function getHttpStatus(error: unknown) {
+  if (error && typeof error === 'object') {
+    if ('response' in error) {
+      const response = (error as { response?: { status?: number } }).response
+      if (response && typeof response.status === 'number') {
+        return response.status
+      }
+    }
+    if ('status' in error) {
+      const status = (error as { status?: number }).status
+      if (typeof status === 'number') return status
+    }
+  }
+  return undefined
+}
+
+function resolveSeatAssignError(error: unknown) {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { data?: unknown } }).response
+    const data = response?.data
+    if (typeof data === 'string' && data.trim()) return data
+    if (data && typeof data === 'object' && 'message' in data) {
+      return String((data as { message?: unknown }).message)
+    }
+  }
+  return error instanceof Error && error.message
+    ? error.message
+    : '좌석 배정에 실패했어요. 잠시 후 다시 시도해 주세요.'
+}
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+async function assignSeatAfterCreate(roomId: string | undefined, seatNumber: number | null) {
+  if (!roomId || typeof seatNumber !== 'number') return
+  const maxAttempts = 3
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await joinRoomFromApi(roomId, seatNumber)
+      const confirmedSeat =
+        typeof response?.participant?.seatNumber === 'number'
+          ? response.participant.seatNumber
+          : seatNumber
+      updateSeat(roomId, confirmedSeat)
+      return
+    } catch (error) {
+      const status = getHttpStatus(error)
+      if (status === 409) {
+        updateSeat(roomId, seatNumber)
+        return
+      }
+      if (status === 404) {
+        updateSeat(roomId, seatNumber)
+        return
+      }
+      const isRetriable = attempt < maxAttempts && (!status || status >= 500)
+      if (!isRetriable) {
+        console.warn('Failed to reserve seat after creating room', error)
+        alert(resolveSeatAssignError(error))
+        return
+      }
+      await wait(400 * attempt)
+    }
+  }
+}
 
 const preview = computed(() => ({
   title: form.title.trim() || '꼬꼬택과 고고 택시~',
@@ -501,6 +671,46 @@ function isKakaoStatusOk(status: unknown) {
 
 watch(departureQuery, (value) => scheduleSearch('departure', value))
 watch(arrivalQuery, (value) => scheduleSearch('arrival', value))
+
+function seatStyle(seat: SeatInfo) {
+  return {
+    left: `${seat.x}%`,
+    top: `${seat.y}%`,
+  }
+}
+
+function formatGenderLabel(value?: string) {
+  if (!value) return ''
+  const normalized = value.toString().trim().toLowerCase()
+  if (
+    normalized === 'm' ||
+    normalized === 'male' ||
+    normalized === '\uB0A8' ||
+    normalized === '\uB0A8\uC131'
+  ) {
+    return 'male'
+  }
+  if (
+    normalized === 'f' ||
+    normalized === 'female' ||
+    normalized === '\uC5EC' ||
+    normalized === '\uC5EC\uC131'
+  ) {
+    return 'female'
+  }
+  return ''
+}
+
+function seatGender(seatNumber: number) {
+  if (selectedSeat.value === seatNumber) {
+    return formatGenderLabel(currentUserGender.value)
+  }
+  return ''
+}
+
+function selectSeat(seatNumber: number) {
+  selectedSeat.value = seatNumber
+}
 
 function scheduleSearch(kind: FieldKind, keyword: string) {
   if (suppressSearch[kind]) {
@@ -782,8 +992,13 @@ function resetForm() {
   farePending.value = true
   errorMessage.value = ''
   successMessage.value = ''
+  selectedSeat.value = null
   clearDraft()
 }
+
+onBeforeRouteLeave(() => {
+  resetForm()
+})
 
 function toLocationPayload(place: SelectedPlace) {
   return {
@@ -844,6 +1059,8 @@ function buildCreateRoomPayload(): CreateRoomPayload {
     capacity,
     filled,
     fare: recognizedFare.value ?? undefined,
+    estimatedFare: recognizedFare.value ?? undefined,
+    seatNumber: selectedSeat.value ?? undefined,
   }
 }
 
@@ -855,6 +1072,7 @@ async function submitForm() {
 
   await Promise.all([ensurePlaceSelected('departure'), ensurePlaceSelected('arrival')])
 
+  const seatToAssign = selectedSeat.value
 
 
   if (!hasRouteAndTime.value) {
@@ -867,6 +1085,11 @@ async function submitForm() {
 
   if (!isFareDetermined.value) {
     errorMessage.value = '요금 책정까지 완료하면 방을 생성할 수 있어요. 영수증을 업로드해 주세요.'
+    return
+  }
+
+  if (!hasSelectedSeat.value) {
+    errorMessage.value = '좌석을 선택해 주세요.'
     return
   }
 
@@ -908,6 +1131,9 @@ async function submitForm() {
     }
     if (createdRoom) {
       rememberRoom(createdRoom)
+      if (typeof seatToAssign === 'number') {
+        updateSeat(createdRoom.id, seatToAssign)
+      }
     }
 
     successMessage.value = '방이 생성되었어요! 곧 이동합니다.'
@@ -1275,6 +1501,117 @@ fieldset.field,
 
 .fare-upload {
   margin-top: 1rem;
+}
+
+.seat-picker {
+  margin-top: 0.75rem;
+  padding: 1.25rem;
+  border-radius: 28px;
+  border: 1px solid rgba(217, 177, 99, 0.35);
+  background: #fffdf5;
+  display: grid;
+  gap: 1rem;
+}
+.seat-picker__header {
+  display: grid;
+  gap: 0.35rem;
+}
+.seat-picker__label {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(161, 98, 7, 0.85);
+  font-weight: 700;
+}
+.seat-picker__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.seat-picker__header p:last-child {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.seat-picker__layout {
+  position: relative;
+  width: min(220px, 80vw);
+  margin: 0 auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 26px;
+  border: 1px solid rgba(253, 214, 81, 0.45);
+  background: #fffef8;
+  padding: 16px;
+}
+.seat-picker__car {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.seat-picker__seats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.seat-picker__marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: clamp(32px, 12vw, 44px);
+  height: clamp(38px, 13vw, 52px);
+  border-radius: 14px;
+  border: 2px solid rgba(250, 204, 21, 0.35);
+  background: #fffdf4;
+  color: #a16207;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  pointer-events: auto;
+}
+.seat-picker__marker:hover {
+  transform: translate(-50%, -50%) translateY(-3px);
+}
+.seat-picker__marker--active {
+  background: #facc15;
+  color: #fffef5;
+  border-color: rgba(250, 184, 0, 0.5);
+}
+.seat-picker__marker span {
+  pointer-events: none;
+}
+.seat-picker__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.seat-picker__icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.seat-picker__icon--male {
+  color: #3b82f6;
+}
+.seat-picker__icon--female {
+  color: #ec4899;
+}
+.seat-picker__helper {
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.seat-picker__helper--selected {
+  color: #8a4f00;
+  font-weight: 600;
 }
 
 @media (max-width: 600px) {

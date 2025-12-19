@@ -82,6 +82,7 @@ export type CreateRoomPayload = {
   fare?: number
   estimatedFare?: number
   estimatedDistanceKm?: number
+  seatNumber?: number | null
 }
 
 export async function fetchAvailableRooms(params: FetchRoomsParams = {}): Promise<RoomPreview[]> {
@@ -114,6 +115,7 @@ export type RoomParticipant = {
   id: string
   name: string
   seatNumber: number | null
+  gender?: string
   role?: string
   status?: string
   joinedAt?: string
@@ -157,28 +159,116 @@ export async function leaveRoomFromApi(roomId: string) {
 }
 
 
-export async function joinRoomFromApi(roomId: string, seatNumber?: number | null) {
+export async function joinRoomFromApi(
+  roomId: string,
+  seatNumber?: number | null,
+): Promise<{ room?: RoomPreview; participant?: RoomParticipant } | void> {
   if (!roomId) {
     throw new Error('방 ID가 필요해요.')
   }
   const url = buildJoinUrl(roomId)
-  const payload: Record<string, unknown> = { roomId }
-  if (typeof seatNumber === 'number') {
-    payload.seatNumber = seatNumber
-  }
   try {
     if (JOIN_METHOD === 'DELETE') {
       await apiClient.delete(url)
       return
     }
     if (JOIN_METHOD === 'PATCH') {
-      await apiClient.patch(url, payload)
-      return
+      return await requestJoinWithPayloads('patch', url, roomId, seatNumber)
     }
-    await apiClient.post(url, payload)
+    return await requestJoinWithPayloads('post', url, roomId, seatNumber)
   } catch (error) {
+    if (
+      JOIN_METHOD === 'POST' &&
+      typeof seatNumber === 'number' &&
+      shouldRetryJoinAsSeatUpdate(error)
+    ) {
+      try {
+        return await requestJoinWithPayloads('patch', url, roomId, seatNumber)
+      } catch (patchError) {
+        throw formatError(patchError)
+      }
+    }
     throw formatError(error)
   }
+}
+
+async function requestJoinWithPayloads(
+  method: 'post' | 'patch',
+  url: string,
+  roomId: string,
+  seatNumber?: number | null,
+) {
+  const candidates = buildJoinPayloads(roomId, seatNumber)
+  let lastError: unknown
+  for (const payload of candidates) {
+    try {
+      if (method === 'patch') {
+        const response = await apiClient.patch(url, payload)
+        return normalizeJoinResponse(response.data)
+      } else {
+        const response = await apiClient.post(url, payload)
+        return normalizeJoinResponse(response.data)
+      }
+    } catch (error) {
+      lastError = error
+      if (!shouldTryNextPayload(error)) {
+        throw error
+      }
+    }
+  }
+  if (lastError) {
+    throw lastError
+  }
+}
+
+function normalizeJoinResponse(payload: unknown): {
+  room?: RoomPreview
+  participant?: RoomParticipant
+} {
+  if (!payload || typeof payload !== 'object') return {}
+  const container = asRecord(payload) ?? {}
+  const rawRoom = unwrapSingleRoomPayload(container)
+  const room =
+    rawRoom && Object.keys(rawRoom).length > 0 ? normalizeRoomPreview(rawRoom) : undefined
+  const participantRaw = asRecord(container.participant ?? container.member ?? container.user)
+  const participant = participantRaw ? normalizeParticipant(participantRaw, 0) : undefined
+  return { room, participant }
+}
+
+function buildJoinPayloads(roomId: string, seatNumber?: number | null) {
+  const base: Record<string, unknown>[] = []
+  if (typeof seatNumber !== 'number') {
+    return [{ roomId }]
+  }
+  base.push({ roomId, seatNumber })
+  base.push({ seatNumber })
+  base.push({ roomId, seat: seatNumber })
+  base.push({ seat: seatNumber })
+  base.push({ roomId, seat_no: seatNumber })
+  base.push({ seat_no: seatNumber })
+  base.push({ roomId, seatNo: seatNumber })
+  base.push({ seatNo: seatNumber })
+  return base
+}
+
+function shouldTryNextPayload(error: unknown) {
+  if (!isAxiosError(error)) return false
+  const status = error.response?.status
+  return status === 400 || status === 422
+}
+
+function shouldRetryJoinAsSeatUpdate(error: unknown) {
+  if (!isAxiosError(error)) return false
+  const status = error.response?.status
+  if (status === 409) return false
+  const message =
+    (typeof error.response?.data === 'string' && error.response.data) ||
+    (error.response?.data &&
+      typeof error.response.data === 'object' &&
+      'message' in error.response.data &&
+      String((error.response.data as { message?: unknown }).message)) ||
+    ''
+  return typeof message === 'string' && message.toLowerCase().includes('already joined')
 }
 
 
@@ -192,17 +282,28 @@ function buildLeaveUrl(roomId: string) {
 
 
 function buildJoinUrl(roomId: string) {
-  if (JOIN_TEMPLATE.includes(':id')) {
-    return JOIN_TEMPLATE.replace(':id', roomId)
-  }
-  if (JOIN_TEMPLATE.includes('{id}')) {
-    return JOIN_TEMPLATE.replace('{id}', roomId)
-  }
-  const normalized = JOIN_TEMPLATE.replace(/\/$/, '')
+  const hasColonId = JOIN_TEMPLATE.includes(':id')
+  const hasBraceId = JOIN_TEMPLATE.includes('{id}')
+  const replaced = hasColonId
+    ? JOIN_TEMPLATE.replace(':id', roomId)
+    : hasBraceId
+      ? JOIN_TEMPLATE.replace('{id}', roomId)
+      : null
+  const normalized = (replaced ?? JOIN_TEMPLATE).replace(/\/$/, '')
+
   if (normalized.endsWith('/join')) {
     return normalized
   }
-  return `${normalized}/${roomId}/join`
+
+  if (replaced && (JOIN_TEMPLATE.endsWith(':id') || JOIN_TEMPLATE.endsWith('{id}'))) {
+    return `${normalized}/join`
+  }
+
+  if (!replaced) {
+    return `${normalized}/${roomId}/join`
+  }
+
+  return normalized
 }
 
 function buildRoomDetailUrl(roomId: string) {
@@ -342,6 +443,13 @@ function normalizeParticipant(rawInput: RawRoom, index: number): RoomParticipant
     rawInput.reservationSeat,
     rawInput.position,
   ])
+  const gender = pickString([
+    rawInput.gender,
+    rawInput.sex,
+    rawInput.genderType,
+    user?.gender,
+    profile?.gender,
+  ])
   const role = pickString([rawInput.role, rawInput.positionName, rawInput.type, rawInput.rank])
   const status = pickString([rawInput.status, rawInput.state])
   const joinedAt = pickDateString([rawInput.joinedAt, rawInput.createdAt, rawInput.updatedAt])
@@ -351,6 +459,7 @@ function normalizeParticipant(rawInput: RawRoom, index: number): RoomParticipant
     id,
     name,
     seatNumber,
+    gender: gender ?? undefined,
     role,
     status,
     joinedAt: joinedAt ?? undefined,
@@ -662,7 +771,12 @@ function formatError(error: unknown) {
         'message' in error.response.data &&
         String((error.response.data as { message?: unknown }).message)) ||
       error.message
-    return new Error(message || '내 방 목록을 불러오지 못했어요.')
+    const next = new Error(message || '??????????????????????? ???????????.')
+    const status = error.response?.status
+    if (typeof status === 'number') {
+      ;(next as { status?: number }).status = status
+    }
+    return next
   }
   return error instanceof Error
     ? error

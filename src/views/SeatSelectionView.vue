@@ -42,12 +42,41 @@
             :key="seat.number"
             type="button"
             class="seat-marker"
-            :class="{ 'seat-marker--active': seat.number === selectedSeat }"
+            :class="{
+              'seat-marker--active': seat.number === selectedSeat,
+              'seat-marker--locked': isSeatLocked(seat.number),
+            }"
             :style="seatStyle(seat)"
             :aria-pressed="seat.number === selectedSeat"
+            :disabled="isSeatLocked(seat.number)"
             @click="selectSeat(seat.number)"
           >
-            <span>{{ seat.number }}</span>
+            <span
+              v-if="seatGender(seat.number) === 'male'"
+              class="seat-marker__icon seat-marker__icon--male"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <circle cx="8.5" cy="12.5" r="5.5" />
+                <path d="M12.5 8.5 L19 2" />
+                <path d="M14.2 2 H19 V6.8" />
+              </svg>
+            </span>
+            <span
+              v-else-if="seatGender(seat.number) === 'female'"
+              class="seat-marker__icon seat-marker__icon--female"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <circle cx="12" cy="9" r="5.5" />
+                <path d="M12 14.5 V22" />
+                <path d="M9 18 H15" />
+              </svg>
+            </span>
+            <span v-else>{{ seat.number }}</span>
+            <span v-if="isSeatOccupied(seat.number)" class="seat-marker__number" aria-hidden="true">
+              {{ seat.number }}
+            </span>
           </button>
         </div>
       </div>
@@ -79,11 +108,13 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomMembership } from '@/composables/useRoomMembership'
-import { joinRoomFromApi } from '@/api/rooms'
+import { fetchRoomDetail, joinRoomFromApi, type RoomParticipant } from '@/api/rooms'
+import { isAxiosError } from 'axios'
 import { getRoomById } from '@/data/mockRooms'
+import { findUserById, getCurrentUser } from '@/services/auth'
 
 interface SeatInfo {
   number: number
@@ -101,9 +132,15 @@ const seats: SeatInfo[] = [
 const router = useRouter()
 const route = useRoute()
 const selectedSeat = ref<number | null>(null)
-const { joinedRooms, joinRoom: ensureRoom, updateSeat } = useRoomMembership()
+const { joinedRooms, activeRoomId, joinRoom: ensureRoom, updateSeat } = useRoomMembership()
 const originalOverflow = ref('')
 const isJoining = ref(false)
+const participants = ref<RoomParticipant[]>([])
+const lastRoomId = ref('')
+
+const fallbackRoomId = computed(
+  () => activeRoomId.value || joinedRooms.value[0]?.roomId || '',
+)
 
 function seatStyle(seat: SeatInfo) {
   return {
@@ -113,10 +150,85 @@ function seatStyle(seat: SeatInfo) {
 }
 
 function selectSeat(seatNumber: number) {
+  if (isSeatLocked(seatNumber)) return
   selectedSeat.value = seatNumber
 }
 
+const currentUserId = computed(() => getCurrentUser()?.id ?? '')
+const currentUserGender = computed(() => {
+  const userId = currentUserId.value
+  if (!userId) return ''
+  return findUserById(userId)?.gender ?? ''
+})
+
+const participantSeatMap = computed(() => {
+  const map = new Map<number, RoomParticipant>()
+  participants.value.forEach(participant => {
+    if (typeof participant.seatNumber === 'number') {
+      map.set(participant.seatNumber, participant)
+    }
+  })
+  return map
+})
+
+function formatGenderLabel(value?: string) {
+  if (!value) return ''
+  const normalized = value.toString().trim().toLowerCase()
+  if (
+    normalized === 'm' ||
+    normalized === 'male' ||
+    normalized === '\uB0A8' ||
+    normalized === '\uB0A8\uC131'
+  ) {
+    return 'male'
+  }
+  if (
+    normalized === 'f' ||
+    normalized === 'female' ||
+    normalized === '\uC5EC' ||
+    normalized === '\uC5EC\uC131'
+  ) {
+    return 'female'
+  }
+  return ''
+}
+
+function isSeatLocked(seatNumber: number) {
+  const participant = participantSeatMap.value.get(seatNumber)
+  if (!participant) return false
+  return participant.id !== currentUserId.value
+}
+
+function isSeatOccupied(seatNumber: number) {
+  return participantSeatMap.value.has(seatNumber)
+}
+
+function seatGender(seatNumber: number) {
+  const participant = participantSeatMap.value.get(seatNumber)
+  if (participant) {
+    return formatGenderLabel(participant.gender)
+  }
+  if (selectedSeat.value === seatNumber) {
+    return formatGenderLabel(currentUserGender.value)
+  }
+  return ''
+}
+
+function normalizeRoomId(value: unknown) {
+  if (!value) return ''
+  if (Array.isArray(value)) return value[0] ? String(value[0]) : ''
+  return String(value)
+}
+
+function resolveRoomId() {
+  const queryId = normalizeRoomId(route.query.roomId)
+  return queryId || fallbackRoomId.value || lastRoomId.value
+}
+
 function resolveJoinError(err: unknown) {
+  if (isAxiosError(err) && err.response?.status === 409) {
+    return '이미 선택된 좌석입니다.'
+  }
   if (err instanceof Error && err.message) {
     return err.message
   }
@@ -128,22 +240,49 @@ function resolveJoinError(err: unknown) {
 
 async function confirmSeat() {
   if (!selectedSeat.value || isJoining.value) return
-  const roomId = (route.query.roomId as string) || 'room-101'
+  const roomId = resolveRoomId()
+  if (!roomId) {
+    alert('방 정보를 찾지 못했어요. 다시 시도해 주세요.')
+    return
+  }
   const seatNumber = selectedSeat.value
   isJoining.value = true
   try {
-    await joinRoomFromApi(roomId, seatNumber)
-    if (!joinedRooms.value.some(entry => entry.roomId === roomId)) {
+    const existingEntry = joinedRooms.value.find(entry => entry.roomId === roomId)
+    if (existingEntry?.seatNumber === seatNumber) {
+      router.push({
+        name: 'room-detail',
+        params: { id: roomId },
+        query: { seat: seatNumber },
+      })
+      return
+    }
+    const response = await joinRoomFromApi(roomId, seatNumber)
+    const confirmedSeat =
+      typeof response?.participant?.seatNumber === 'number'
+        ? response.participant.seatNumber
+        : seatNumber
+    if (response?.participant) {
+      const index = participants.value.findIndex(item => item.id === response.participant?.id)
+      if (index >= 0) {
+        participants.value[index] = response.participant
+      } else {
+        participants.value = [...participants.value, response.participant]
+      }
+    }
+    if (response?.room) {
+      ensureRoom(response.room)
+    } else if (!joinedRooms.value.some(entry => entry.roomId === roomId)) {
       const snapshot = getRoomById(roomId)
       if (snapshot) {
         ensureRoom(snapshot)
       }
     }
-    updateSeat(roomId, seatNumber)
+    updateSeat(roomId, confirmedSeat)
     router.push({
       name: 'room-detail',
       params: { id: roomId },
-      query: { seat: seatNumber },
+      query: { seat: confirmedSeat },
     })
   } catch (error) {
     alert(resolveJoinError(error))
@@ -153,8 +292,39 @@ async function confirmSeat() {
 }
 
 function goBack() {
+  const roomId = resolveRoomId()
+  if (roomId) {
+    router.push({ name: 'room-detail', params: { id: roomId } })
+    return
+  }
   router.push({ name: 'find-room' })
 }
+
+const activeRoomIdForSelection = computed(() => resolveRoomId())
+
+async function loadRoomDetail(roomId: string) {
+  if (!roomId) return
+  try {
+    const detail = await fetchRoomDetail(roomId)
+    participants.value = detail.participants
+  } catch {
+    participants.value = []
+  }
+}
+
+watch(
+  () => activeRoomIdForSelection.value,
+  id => {
+    if (id) {
+      lastRoomId.value = id
+      loadRoomDetail(id)
+    } else {
+      participants.value = []
+    }
+  },
+  { immediate: true },
+)
+
 
 onMounted(() => {
   originalOverflow.value = document.body.style.overflow
@@ -252,6 +422,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
   pointer-events: auto;
+  overflow: visible;
 }
 .seat-marker:hover {
   transform: translate(-50%, -50%) translateY(-4px);
@@ -261,8 +432,52 @@ onBeforeUnmount(() => {
   color: #fffdf4;
   border-color: rgba(250, 184, 0, 0.3);
 }
+.seat-marker--locked {
+  background: #e5e7eb;
+  color: #6b7280;
+  border-color: rgba(107, 114, 128, 0.4);
+  cursor: not-allowed;
+  transform: translate(-50%, -50%);
+}
+.seat-marker--locked:hover {
+  transform: translate(-50%, -50%);
+}
 .seat-marker span {
   pointer-events: none;
+}
+.seat-marker__number {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(59, 47, 31, 0.7);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  padding: 1px 6px;
+  line-height: 1;
+}
+.seat-marker__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.seat-marker__icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.seat-marker__icon--male {
+  color: #3b82f6;
+}
+.seat-marker__icon--female {
+  color: #ec4899;
 }
 .seat-card__selection,
 .seat-card__selection--hint {

@@ -135,6 +135,55 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+  scrollBehavior() {
+    return { left: 0, top: 0 }
+  },
+})
+
+const ACCESS_KEYS = ['gogotaxi_access_token', 'gogotaxi_token', 'auth_token']
+const REFRESH_KEYS = ['gogotaxi_refresh_token', 'auth_refresh_token']
+const USER_KEYS = ['auth_user', 'gogotaxi_user']
+
+function getLocalToken(keys: string[]) {
+  if (typeof window === 'undefined') return null
+  for (const key of keys) {
+    const val = window.localStorage.getItem(key)
+    if (val) return val
+  }
+  return null
+}
+
+function hasStoredUser() {
+  if (typeof window === 'undefined') return false
+  for (const key of USER_KEYS) {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) continue
+    try {
+      const parsed = JSON.parse(raw) as { id?: string | number }
+      if (parsed?.id !== undefined && parsed?.id !== null && `${parsed.id}`.trim()) {
+        return true
+      }
+    } catch {
+      continue
+    }
+  }
+  return false
+}
+
+function isAuthenticated() {
+  const hasToken = Boolean(getLocalToken(ACCESS_KEYS) || getLocalToken(REFRESH_KEYS))
+  return hasToken && hasStoredUser()
+}
+
+router.beforeEach((to, from, next) => {
+  const authed = isAuthenticated()
+
+  if (to.meta?.requiresAuth && !authed) {
+    next({ name: 'login', query: { redirect: to.fullPath } })
+    return
+  }
+
+  next()
 })
 
 export default router

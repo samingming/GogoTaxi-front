@@ -130,7 +130,8 @@ function btnClass(name: string) {
   right: 0;
   bottom: 0;
   height: var(--tab-h);
-  padding: 8px clamp(8px, 4vw, 18px) calc(8px + var(--safe-bottom));
+  padding: 8px clamp(8px, 4vw, 18px)
+    calc(8px + max(env(safe-area-inset-bottom, 0px), var(--safe-bottom)));
 
   box-sizing: border-box;
   display: grid;

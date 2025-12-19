@@ -66,7 +66,12 @@
               {{ leavingRoomId === entry.roomId ? '방 나가는 중...' : '방 나가기' }}
             </button>
           </div>
-          <button type="button" class="btn btn--settle" @click="goToSettlement(entry.roomId)">
+          <button
+            v-if="entry.isHost"
+            type="button"
+            class="btn btn--settle"
+            @click="goToSettlement(entry.roomId)"
+          >
             정산하기
           </button>
         </footer>
@@ -121,6 +126,7 @@ type RoomCard = {
   statusLabel: string
   statusKey: string
   role?: string
+  isHost: boolean
   dispatchSnapshot?: JoinedRoomEntry['dispatchSnapshot']
 }
 
@@ -159,10 +165,17 @@ const roomCards = computed<RoomCard[]>(() =>
         statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
         statusKey,
         role: entry.role,
+        isHost: isHostRole(entry.role),
         dispatchSnapshot: entry.dispatchSnapshot,
       }
     }),
 )
+
+function isHostRole(role?: string) {
+  if (!role) return false
+  const normalized = role.trim().toLowerCase()
+  return normalized.includes('host') || normalized.includes('??')
+}
 
 function formatJoinedAt(iso: string) {
   const date = new Date(iso)
@@ -176,7 +189,7 @@ function goFindRoom() {
 
 function goToSettlement(roomId: string) {
   if (!roomId) return
-  router.push({ name: 'receipt-scan', query: { roomId } })
+  router.push({ name: 'split-payment', query: { roomId } })
 }
 
 function resolveErrorMessage(err: unknown, fallback: string) {
