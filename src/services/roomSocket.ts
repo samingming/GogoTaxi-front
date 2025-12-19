@@ -2,9 +2,16 @@ import type { RoomParticipant } from '@/api/rooms'
 import type { RoomPreview } from '@/types/rooms'
 import { getSocketIoModule } from './socketLoader'
 
+export type RoomsRefreshPayload = {
+  roomId: string | null
+  reason: string
+  at?: string
+}
+
 export type RoomRealtimeHandlers = {
   onRoomUpdated?: (patch: RoomRealtimePatch) => void
   onParticipantsUpdated?: (participants: RoomParticipant[]) => void
+  onRoomsRefresh?: (payload: RoomsRefreshPayload) => void
   onError?: (message: string) => void
 }
 
@@ -32,8 +39,8 @@ export async function connectRoomChannel(
       auth: options.token ? { token: options.token } : undefined,
     })
 
-    const joinPayload = { roomId }
-    socket.emit('room:join', joinPayload)
+    const joinPayload = roomId
+    socket.emit('room:subscribe', joinPayload)
 
     const handleRoomUpdate = (...args: unknown[]) => {
       const [payload] = args
@@ -53,6 +60,17 @@ export async function connectRoomChannel(
       }
     }
 
+    const handleRoomsRefresh = (...args: unknown[]) => {
+      const [payload] = args
+      if (!isRoomsRefreshPayload(payload)) return
+      if (payload.roomId && payload.roomId !== roomId) return
+      handlers.onRoomsRefresh?.({
+        roomId: (payload.roomId as string | null | undefined) ?? null,
+        reason: (payload.reason as string | undefined) ?? 'changed',
+        at: typeof payload.at === 'string' ? payload.at : undefined,
+      })
+    }
+
     const handleError = (...args: unknown[]) => {
       const [error] = args
       const message =
@@ -62,13 +80,15 @@ export async function connectRoomChannel(
 
     socket.on('room:update', handleRoomUpdate)
     socket.on('room:participants', handleParticipants)
+    socket.on('rooms:refresh', handleRoomsRefresh)
     socket.on('error', handleError)
     socket.on('connect_error', handleError)
 
     return () => {
-      socket.emit('room:leave', joinPayload)
+      socket.emit('room:unsubscribe', joinPayload)
       socket.off('room:update', handleRoomUpdate)
       socket.off('room:participants', handleParticipants)
+      socket.off('rooms:refresh', handleRoomsRefresh)
       socket.off('error', handleError)
       socket.off('connect_error', handleError)
       socket.disconnect()
@@ -89,4 +109,48 @@ function isParticipantPayload(value: unknown): value is ParticipantPayload {
   if (typeof value !== 'object' || value === null) return false
   const maybe = value as { participants?: unknown }
   return !maybe.participants || Array.isArray(maybe.participants)
+}
+
+function isRoomsRefreshPayload(value: unknown): value is RoomsRefreshPayload {
+  if (typeof value !== 'object' || value === null) return false
+  const payload = value as Record<string, unknown>
+  const { roomId, reason } = payload
+  const validRoomId = roomId === null || roomId === undefined || typeof roomId === 'string'
+  const validReason = typeof reason === 'string' || reason === undefined
+  return validRoomId && validReason
+}
+
+export async function connectRoomsRefresh(
+  handler: (payload: RoomsRefreshPayload) => void,
+  options: { token?: string } = {},
+) {
+  const endpoint = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL
+  if (!endpoint) {
+    return () => {}
+  }
+  try {
+    const { io } = await getSocketIoModule()
+    const socket = io(endpoint, {
+      transports: ['websocket', 'polling'],
+      auth: options.token ? { token: options.token } : undefined,
+    })
+
+    const handleRefresh = (...args: unknown[]) => {
+      const [payload] = args
+      if (!isRoomsRefreshPayload(payload)) return
+      handler({
+        roomId: (payload.roomId as string | null | undefined) ?? null,
+        reason: (payload.reason as string | undefined) ?? 'changed',
+        at: typeof payload.at === 'string' ? payload.at : undefined,
+      })
+    }
+
+    socket.on('rooms:refresh', handleRefresh)
+    return () => {
+      socket.off('rooms:refresh', handleRefresh)
+      socket.disconnect()
+    }
+  } catch {
+    return () => {}
+  }
 }

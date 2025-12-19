@@ -108,11 +108,17 @@
 
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
+import { refreshUserBalance } from '@/stores/userStore'
 
 const route = useRoute()
 const router = useRouter()
 
 function go(name: string) {
+  void refreshUserBalance()
+  if (route.name === name) {
+    window.location.reload()
+    return
+  }
   router.push({ name })
 }
 function btnClass(name: string) {
@@ -141,7 +147,6 @@ function btnClass(name: string) {
   box-shadow: 0 -12px 26px rgba(40, 30, 20, 0.16);
   z-index: 10000;
   transform: translateZ(0);
-  will-change: transform;
 }
 .tab-btn {
   appearance: none;

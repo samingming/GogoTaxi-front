@@ -114,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-type SortMode = 'default' | 'nearest-departure' | 'nearest-arrival' | 'departure-time'
+type SortMode = 'recent' | 'default' | 'nearest-departure' | 'nearest-arrival' | 'departure-time'
 
 defineProps<{
   sortMode: SortMode
@@ -293,4 +293,3 @@ function handleSortModeChange(event: Event) {
   .sort-modal{ width:100%; height:auto; }
 }
 </style>
-

@@ -267,7 +267,8 @@ const saveNickname = () => {
   }
   updateProfile({ name: nextNickname })
     .then((me) => {
-      account.nickname = me.name || me.loginId;
+      const safeName = (me.name ?? '').trim() || (me.loginId ?? '').trim() || nextNickname
+      account.nickname = safeName
       cancelEdit();
     })
     .catch((err) => {
@@ -352,9 +353,16 @@ const cancelLogout = () => {
 
 const confirmLogout = () => {
   showLogoutConfirm.value = false;
-  router.push({ name: "login" }).catch((error) => {
-    console.warn("\uB85C\uADF8\uC544\uC6C3 \uD6C4 \uC774\uB3D9 \uC911 \uC624\uB958", error);
-  });
+  import("@/services/auth")
+    .then(mod => mod.logout?.())
+    .catch(error => {
+      console.warn("\uB85C\uADF8\uC544\uC6C3 \uCC98\uB9AC \uC911 \uC624\uB958", error);
+    })
+    .finally(() => {
+      router.push({ name: "login" }).catch((error) => {
+        console.warn("\uB85C\uADF8\uC544\uC6C3 \uD6C4 \uC774\uB3D9 \uC911 \uC624\uB958", error);
+      });
+    });
 };
 
 const goBack = () => {
@@ -368,11 +376,14 @@ onBeforeUnmount(() => {
 const loadProfile = async () => {
   try {
     const me = await fetchMe();
-    account.nickname = me.name || me.loginId;
-    account.phone = formatPhone(me.phone || "");
-    account.username = me.loginId;
+    const safeName = (me.name ?? "").trim() || (me.loginId ?? "").trim();
+    account.nickname = safeName;
+    account.phone = formatPhone(me.phone ?? "");
+    account.username = me.loginId ?? "";
     account.gender = me.gender === "F" ? "\uC5EC\uC131" : me.gender === "M" ? "\uB0A8\uC131" : "";
-    account.birthDate = me.birthDate ? me.birthDate.split("T")[0] : "";
+    const safeBirth =
+      typeof me.birthDate === "string" && me.birthDate.trim() ? me.birthDate.split("T")[0] : "";
+    account.birthDate = safeBirth ?? "";
   } catch (err) {
     console.error("Failed to load profile", err);
     account.nickname = "";

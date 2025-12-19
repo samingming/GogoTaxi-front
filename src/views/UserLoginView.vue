@@ -135,10 +135,14 @@ function persistSession(res: LoginResponse) {
   if (accessToken) {
     localStorage.setItem('gogotaxi_token', accessToken)
     localStorage.setItem('gogotaxi_access_token', accessToken)
+    localStorage.setItem('auth_token', accessToken)
   }
   localStorage.setItem('gogotaxi_user', JSON.stringify(res.user))
   const refreshToken = res.refreshToken
-  if (refreshToken) localStorage.setItem('gogotaxi_refresh_token', refreshToken)
+  if (refreshToken) {
+    localStorage.setItem('gogotaxi_refresh_token', refreshToken)
+    localStorage.setItem('auth_refresh_token', refreshToken)
+  }
 }
 
 function storePendingConsent(params: { token: string; provider: string; name?: string; redirect?: string }) {

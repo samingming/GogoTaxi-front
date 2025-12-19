@@ -173,9 +173,27 @@ function normalizeRideState(raw: unknown): RideState {
     return {
       requestId: pickString(data.requestId, data.id),
       stage,
-      driverName: pickString(data.driverName, data.driver_name, data.captain),
-      carModel: pickString(data.carModel, data.model),
-      carNumber: pickString(data.carNumber, data.plate, data.car_no),
+      driverName: pickString(
+        data.driverName,
+        data.driver_name,
+        data.captain,
+        (data.driver as Record<string, unknown> | undefined)?.name,
+        (data.driver as Record<string, unknown> | undefined)?.driverName,
+        (data.driver as Record<string, unknown> | undefined)?.driver_name,
+      ),
+      carModel: pickString(
+        data.carModel,
+        data.model,
+        (data.driver as Record<string, unknown> | undefined)?.carModel,
+        (data.driver as Record<string, unknown> | undefined)?.car_model,
+      ),
+      carNumber: pickString(
+        data.carNumber,
+        data.plate,
+        data.car_no,
+        (data.driver as Record<string, unknown> | undefined)?.carNumber,
+        (data.driver as Record<string, unknown> | undefined)?.car_no,
+      ),
       etaMinutes: pickNumber(data.etaMinutes, data.eta, data.eta_minutes),
       updatedAt: pickString(data.updatedAt, data.updated_at),
     }

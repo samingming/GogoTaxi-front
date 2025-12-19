@@ -25,8 +25,8 @@ function goHome() {
   left: 0;
   right: 0;
   box-sizing: border-box;
-  padding-top: var(--safe-top);
-  height: calc(var(--header-h) + var(--safe-top));
+  padding-top: var(--safe-top-fixed, var(--safe-top));
+  height: calc(var(--header-h) + var(--safe-top-fixed, var(--safe-top)));
   background: var(--header-bg, #fdd651);
   border-bottom: 1px solid var(--header-border, #f0b400);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
@@ -38,7 +38,7 @@ function goHome() {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--safe-top);
+  height: var(--safe-top-fixed, var(--safe-top));
   background: inherit;
   pointer-events: none;
 }

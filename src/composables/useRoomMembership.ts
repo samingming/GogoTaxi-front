@@ -21,6 +21,7 @@ type SettlementSnapshot = {
   analysis: ReceiptAnalysis | null
   completedAt?: string
   fileName?: string
+  isFinal?: boolean
 }
 
 function cloneDispatchSnapshot(snapshot?: DispatchSnapshot) {
@@ -236,12 +237,15 @@ watch(
   { deep: true },
 )
 
-function joinRoom(room: RoomPreview) {
+function joinRoom(room: RoomPreview, role?: string) {
   const now = new Date().toISOString()
   const existing = joinedRooms.value.find(entry => entry.roomId === room.id)
   if (existing) {
     existing.joinedAt = now
     existing.roomSnapshot = room
+    if (role) {
+      existing.role = role
+    }
     activeRoomId.value = room.id
     return
   }
@@ -250,7 +254,7 @@ function joinRoom(room: RoomPreview) {
       roomId: room.id,
       joinedAt: now,
       seatNumber: null,
-      role: undefined,
+      role,
       roomSnapshot: room,
     },
     ...joinedRooms.value,
@@ -279,17 +283,33 @@ function setActiveRoom(roomId: string) {
 
 function replaceRooms(entries: JoinedRoomEntry[]) {
   if (!Array.isArray(entries)) return
+  const activeRoomIds = new Set(entries.map(entry => entry.roomId))
+  if (activeRoomIds.size) {
+    completedRooms.value = completedRooms.value.filter(record => {
+      if (!activeRoomIds.has(record.roomId)) return true
+      const incoming = entries.find(entry => entry.roomId === record.roomId)
+      const status = incoming?.roomSnapshot?.status
+      return status === 'success' || status === 'failed'
+    })
+  }
   const existingDispatchSnapshots = new Map(
     joinedRooms.value.map(entry => [entry.roomId, entry.dispatchSnapshot]),
   )
   const existingSettlementSnapshots = new Map(
     joinedRooms.value.map(entry => [entry.roomId, entry.settlementSnapshot]),
   )
+  const existingRoomSnapshots = new Map(
+    joinedRooms.value.map(entry => [entry.roomId, entry.roomSnapshot]),
+  )
   const completedIds = new Set(completedRooms.value.map(entry => entry.roomId))
   joinedRooms.value = entries
     .filter(entry => !completedIds.has(entry.roomId))
     .map(entry => {
       const cloned = cloneEntry(entry)
+      const existingSnapshot = existingRoomSnapshots.get(cloned.roomId)
+      if (existingSnapshot && cloned.roomSnapshot.fare == null && existingSnapshot.fare != null) {
+        cloned.roomSnapshot = { ...cloned.roomSnapshot, fare: existingSnapshot.fare }
+      }
       if (!cloned.dispatchSnapshot) {
         const snapshot = existingDispatchSnapshots.get(cloned.roomId)
         if (snapshot) {
@@ -336,16 +356,25 @@ function syncDispatchSnapshot(roomId: string, snapshot: DispatchSnapshot | null 
 
 function syncSettlementSnapshot(roomId: string, snapshot: SettlementSnapshot | null | undefined) {
   const target = joinedRooms.value.find(entry => entry.roomId === roomId)
-  if (!target) return
-  if (snapshot) {
-    target.settlementSnapshot = cloneSettlementSnapshot(snapshot)
-    if (snapshot.analysis) {
-      completeRoom(roomId, snapshot.completedAt)
-      return
+  if (target) {
+    if (snapshot) {
+      target.settlementSnapshot = cloneSettlementSnapshot(snapshot)
+      if (snapshot.isFinal) {
+        completeRoom(roomId, snapshot.completedAt)
+      }
+    } else if (target.settlementSnapshot) {
+      delete target.settlementSnapshot
     }
-  } else if (target.settlementSnapshot) {
-    delete target.settlementSnapshot
+    return
   }
+  if (!snapshot) return
+  const completedIndex = completedRooms.value.findIndex(entry => entry.roomId === roomId)
+  if (completedIndex === -1) return
+  const existing = completedRooms.value[completedIndex]
+  completedRooms.value.splice(completedIndex, 1, {
+    ...existing,
+    settlementSnapshot: cloneSettlementSnapshot(snapshot),
+  })
 }
 
 function completeRoom(roomId: string, completedAt?: string) {

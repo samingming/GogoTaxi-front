@@ -9,6 +9,20 @@ export type ReceiptAnalysis = {
   modelLatencyMs?: number
 }
 
+export type ReceiptSettlement = {
+  action: 'hold' | 'finalize'
+  perHead?: number
+  collectedFrom?: number
+  delta?: number
+  extraPerHead?: number
+  refundPerHead?: number
+}
+
+type AnalyzeReceiptOptions = {
+  roomId?: string
+  action?: ReceiptSettlement['action']
+}
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -18,15 +32,20 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-export async function analyzeReceipt(file: File) {
+export async function analyzeReceipt(file: File, options?: AnalyzeReceiptOptions) {
   const base64 = await fileToBase64(file)
   const cleanBase64 = base64.includes(',') ? base64.split(',').pop() ?? base64 : base64
   try {
-    const { data } = await apiClient.post<{ analysis: ReceiptAnalysis }>('/api/receipts/analyze', {
-      imageBase64: cleanBase64,
-      mimeType: file.type || 'image/png',
-    })
-    return data.analysis
+    const { data } = await apiClient.post<{ analysis: ReceiptAnalysis; settlement?: ReceiptSettlement | null }>(
+      '/api/receipts/analyze',
+      {
+        imageBase64: cleanBase64,
+        mimeType: file.type || 'image/png',
+        ...(options?.roomId ? { roomId: options.roomId } : {}),
+        ...(options?.action ? { action: options.action } : {}),
+      },
+    )
+    return data
   } catch (error) {
     const message =
       (error as any)?.response?.data?.message ??

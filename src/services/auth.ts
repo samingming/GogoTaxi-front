@@ -130,6 +130,17 @@ export function logout() {
   const storage = getStorage()
   storage.removeItem(TOKEN_KEY)
   storage.removeItem(CURRENT_KEY)
+  storage.removeItem('gogotaxi_token')
+  storage.removeItem('gogotaxi_access_token')
+  storage.removeItem('gogotaxi_refresh_token')
+  storage.removeItem('auth_token')
+  storage.removeItem('auth_refresh_token')
+  storage.removeItem('gogotaxi_user')
+  storage.removeItem('auth_user')
+  storage.removeItem('gogotaxi_pending_social_token')
+  storage.removeItem('gogotaxi_pending_social_provider')
+  storage.removeItem('gogotaxi_pending_social_name')
+  storage.removeItem('gogotaxi_pending_social_redirect')
 }
 
 export function getCurrentUser(): AuthProfile | null {
@@ -138,13 +149,8 @@ export function getCurrentUser(): AuthProfile | null {
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw) as Partial<User>
-    if (!parsed || (!parsed.id && parsed.id !== 0)) return null
-    const id =
-      typeof parsed.id === 'string'
-        ? parsed.id
-        : typeof parsed.id === 'number'
-          ? String(parsed.id)
-          : null
+    if (!parsed) return null
+    const id = typeof parsed.id === 'string' && parsed.id.trim() ? parsed.id : null
     if (!id) return null
     const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : id
     return { id, name }

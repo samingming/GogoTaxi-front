@@ -60,13 +60,19 @@
             <button
               type="button"
               class="btn btn--ghost"
-              :disabled="leavingRoomId === entry.roomId"
+              :disabled="entry.leaveLocked || leavingRoomId === entry.roomId"
               @click="dropRoom(entry.roomId)"
             >
               {{ leavingRoomId === entry.roomId ? '방 나가는 중...' : '방 나가기' }}
             </button>
           </div>
-          <button type="button" class="btn btn--settle" @click="goToSettlement(entry.roomId)">
+          <button
+            v-if="entry.isHost"
+            type="button"
+            class="btn btn--settle"
+            :disabled="!entry.canSettle"
+            @click="goToSettlement(entry.roomId)"
+          >
             정산하기
           </button>
         </footer>
@@ -80,12 +86,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchMyRooms, leaveRoomFromApi } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
 import type { JoinedRoomEntry } from '@/composables/useRoomMembership'
 import type { RoomPreview } from '@/types/rooms'
+import { connectRoomsRefresh } from '@/services/roomSocket'
 
 const router = useRouter()
 const { joinedRooms, leaveRoom, setActiveRoom, replaceRooms, completedRooms } = useRoomMembership()
@@ -93,6 +100,7 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const lastUpdatedAt = ref<string | null>(null)
 const leavingRoomId = ref<string | null>(null)
+const disconnectRoomsRefresh = ref<null | (() => void)>(null)
 
 const STATUS_META: Partial<Record<NonNullable<RoomPreview['status']>, { label: string }>> = {
   recruiting: { label: '모집 중' },
@@ -122,6 +130,9 @@ type RoomCard = {
   statusKey: string
   role?: string
   dispatchSnapshot?: JoinedRoomEntry['dispatchSnapshot']
+  isHost: boolean
+  canSettle: boolean
+  leaveLocked: boolean
 }
 
 const completedRoomIds = computed(() => new Set(completedRooms.value.map(entry => entry.roomId)))
@@ -145,12 +156,24 @@ const roomCards = computed<RoomCard[]>(() =>
       const hasDispatchEvidence = Boolean(
         entry.dispatchSnapshot?.analysis ||
           entry.dispatchSnapshot?.message ||
-          entry.dispatchSnapshot?.completedAt,
+          entry.dispatchSnapshot?.completedAt ||
+          room.taxi?.carNumber ||
+          room.taxi?.driverName ||
+          room.taxi?.carModel,
       )
       const statusKey = hasDispatchEvidence
         ? 'driver_assigned'
         : room.status ?? 'recruiting'
       const joinedAtLabel = formatJoinedAt(entry.joinedAt)
+      const roleLabel = (entry.role ?? '').toLowerCase()
+      const isHost =
+        roleLabel.includes('host') ||
+        roleLabel.includes('방장') ||
+        roleLabel.includes('leader') ||
+        entry.seatNumber === 1
+      const canSettle = isHost && hasDispatchEvidence
+      const leaveLockedStatuses = new Set(['driver_assigned', 'arriving', 'aboard', 'success'])
+      const leaveLocked = leaveLockedStatuses.has(statusKey)
       return {
         roomId: entry.roomId,
         room,
@@ -160,6 +183,9 @@ const roomCards = computed<RoomCard[]>(() =>
         statusKey,
         role: entry.role,
         dispatchSnapshot: entry.dispatchSnapshot,
+        isHost,
+        canSettle,
+        leaveLocked,
       }
     }),
 )
@@ -204,8 +230,18 @@ async function loadMyRooms() {
   }
 }
 
+async function setupRoomsRefresh() {
+  const disconnect = await connectRoomsRefresh(() => loadMyRooms())
+  disconnectRoomsRefresh.value = disconnect
+}
+
 onMounted(() => {
   loadMyRooms()
+  void setupRoomsRefresh()
+})
+
+onBeforeUnmount(() => {
+  disconnectRoomsRefresh.value?.()
 })
 
 function enterRoom(entry: RoomCard) {
@@ -236,6 +272,9 @@ async function dropRoom(roomId: string) {
 .my-rooms {
   min-height: calc(100dvh - var(--header-h, 0px) - var(--tab-h, 64px));
   padding: clamp(28px, 6vw, 60px) clamp(18px, 5vw, 54px) clamp(28px, 5vh, 48px);
+  padding-bottom: calc(
+    clamp(28px, 5vh, 48px) + var(--tab-h, 64px) + env(safe-area-inset-bottom, 0px)
+  );
   background: #fff7e1;
   color: #3b2600;
   display: grid;
@@ -423,13 +462,42 @@ async function dropRoom(roomId: string) {
   color: #0f8f3a;
   font-weight: 700;
 }
+.btn--settle:not(:disabled):hover,
+.btn--settle:not(:disabled):active {
+  background: rgba(34, 197, 94, 0.28);
+  color: #0f8f3a;
+}
+.btn--settle:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+}
+.btn--settle:disabled:hover,
+.btn--settle:disabled:active {
+  background: #e5e7eb;
+  color: #9ca3af;
+}
 
 .btn--ghost {
   background: rgba(250, 204, 21, 0.12);
   color: #a16207;
 }
+.btn--ghost:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+}
+.btn--ghost:disabled:hover,
+.btn--ghost:disabled:active {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
 
-.btn:hover {
+.btn:not(.btn--settle):hover {
   background: rgba(250, 204, 21, 0.32);
   color: #7c2d12;
 }

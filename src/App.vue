@@ -28,32 +28,80 @@ const route = useRoute()
 const hideBottomTab = computed(() => Boolean(route.meta?.hideBottomNav))
 
 const VIEWPORT_VAR = '--browser-ui-bottom'
-const SAFE_TOP_VAR = '--safe-top'
+const KEYBOARD_VAR = '--keyboard-offset'
+const VIEWPORT_OFFSET_TOP_VAR = '--viewport-offset-top'
+const KEYBOARD_THRESHOLD_PX = 120
+let lastViewportOffsetTop = -1
 
 function updateBrowserUiOffset() {
   if (typeof window === 'undefined') return
   const vv = window.visualViewport
-  const offset = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
-  document.documentElement.style.setProperty(VIEWPORT_VAR, `${offset}px`)
-  const safeTop = vv ? Math.max(0, vv.offsetTop) : 0
-  document.documentElement.style.setProperty(SAFE_TOP_VAR, `${safeTop}px`)
+  const layoutHeight = document.documentElement.clientHeight
+  const rawOffset = vv ? Math.max(0, layoutHeight - vv.height) : 0
+  const keyboardOffset = rawOffset > KEYBOARD_THRESHOLD_PX ? rawOffset : 0
+  const browserUiOffset = rawOffset > KEYBOARD_THRESHOLD_PX ? 0 : rawOffset
+  const activeEl = document.activeElement
+  const isEditable =
+    !!activeEl &&
+    (activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      (activeEl as HTMLElement).isContentEditable)
+  const resolvedKeyboardOffset = isEditable ? keyboardOffset : 0
+  document.documentElement.style.setProperty(VIEWPORT_VAR, `${browserUiOffset}px`)
+  document.documentElement.style.setProperty(KEYBOARD_VAR, `${resolvedKeyboardOffset}px`)
 }
 
-const handleViewportChange = () => updateBrowserUiOffset()
+function updateViewportOffsetTop() {
+  if (typeof window === 'undefined') return
+  const vv = window.visualViewport
+  const layoutHeight = document.documentElement.clientHeight
+  const rawOffset = vv ? Math.max(0, layoutHeight - vv.height) : 0
+  const rawOffsetTop = vv ? Math.max(0, vv.offsetTop) : 0
+  const rawSafeTop = getComputedStyle(document.documentElement).getPropertyValue('--safe-top')
+  const safeTop = Number.parseFloat(rawSafeTop) || 0
+  const adjustedOffsetTop =
+    rawOffset > KEYBOARD_THRESHOLD_PX ? Math.max(0, rawOffsetTop - safeTop) : 0
+  const nextOffsetTop = Math.round(adjustedOffsetTop)
+  if (nextOffsetTop !== lastViewportOffsetTop) {
+    document.documentElement.style.setProperty(VIEWPORT_OFFSET_TOP_VAR, `${nextOffsetTop}px`)
+    lastViewportOffsetTop = nextOffsetTop
+  }
+}
+
+
+let viewportRafId = 0
+const handleViewportChange = () => {
+  if (viewportRafId) return
+  viewportRafId = window.requestAnimationFrame(() => {
+    viewportRafId = 0
+    updateBrowserUiOffset()
+    updateViewportOffsetTop()
+  })
+}
+
+let viewportScrollRafId = 0
+const handleViewportScroll = () => {
+  if (viewportScrollRafId) return
+  viewportScrollRafId = window.requestAnimationFrame(() => {
+    viewportScrollRafId = 0
+    updateViewportOffsetTop()
+  })
+}
 
 onMounted(() => {
   updateBrowserUiOffset()
+  updateViewportOffsetTop()
   if (typeof window === 'undefined') return
   startNotificationPolling()
   if (!window.visualViewport) return
   window.visualViewport.addEventListener('resize', handleViewportChange)
-  window.visualViewport.addEventListener('scroll', handleViewportChange)
+  window.visualViewport.addEventListener('scroll', handleViewportScroll)
 })
 
 onBeforeUnmount(() => {
   if (typeof window !== 'undefined' && window.visualViewport) {
     window.visualViewport.removeEventListener('resize', handleViewportChange)
-    window.visualViewport.removeEventListener('scroll', handleViewportChange)
+    window.visualViewport.removeEventListener('scroll', handleViewportScroll)
   }
   stopNotificationPolling()
 })
@@ -85,8 +133,11 @@ const contentStyle = computed(() => {
   --header-h: 56px;
   --tab-h: 72px;
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-top-fixed: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --browser-ui-bottom: 0px;
+  --keyboard-offset: 0px;
+  --viewport-offset-top: 0px;
   --header-bg: #fdd651;
   --header-border: #f0b400;
   --app-bg: #fff7e1;
@@ -118,7 +169,7 @@ body::before {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--safe-top);
+  height: var(--safe-top-fixed);
   background: var(--header-bg, #fdd651);
   pointer-events: none;
   z-index: 1000;
@@ -130,8 +181,8 @@ body::before {
   background: var(--app-bg, #fff7e1);
 }
 .app-content {
-  padding-top: calc(var(--header-h) + var(--safe-top));
+  padding-top: calc(var(--header-h) + var(--safe-top-fixed));
   padding-bottom: calc(var(--tab-h) + var(--safe-bottom) + var(--browser-ui-bottom)); /* spacing when tab is visible */
-  min-height: calc(100dvh - (var(--header-h) + var(--safe-top)));
+  min-height: calc(100dvh - (var(--header-h) + var(--safe-top-fixed)));
 }
 </style>

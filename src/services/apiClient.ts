@@ -122,6 +122,7 @@ apiClient.interceptors.response.use(
 );
 
 const SETTLEMENT_PATH_PATTERN = /\/api\/settlements\/rooms\/[^/]+\/(hold|finalize)(\?|$)/i
+const RECEIPT_SETTLEMENT_PATH_PATTERN = /\/api\/receipts\/analyze(\?|$)/i
 
 const maybeRefreshNotifications = (url?: string, method?: string) => {
   if (!url || method?.toUpperCase() !== 'POST') return
@@ -133,13 +134,25 @@ const maybeRefreshNotifications = (url?: string, method?: string) => {
     })
 }
 
+const maybeRefreshWallet = (url?: string, method?: string) => {
+  if (!url || method?.toUpperCase() !== 'POST') return
+  if (!SETTLEMENT_PATH_PATTERN.test(url) && !RECEIPT_SETTLEMENT_PATH_PATTERN.test(url)) return
+  import('@/stores/userStore')
+    .then(module => module.refreshUserBalance?.())
+    .catch(error => {
+      console.warn('꼬꼬페이 잔액을 새로고침하지 못했습니다.', error)
+    })
+}
+
 apiClient.interceptors.response.use(
   response => {
     maybeRefreshNotifications(response.config?.url, response.config?.method)
+    maybeRefreshWallet(response.config?.url, response.config?.method)
     return response
   },
   error => {
     maybeRefreshNotifications(error.config?.url, error.config?.method)
+    maybeRefreshWallet(error.config?.url, error.config?.method)
     return Promise.reject(error)
   },
 )

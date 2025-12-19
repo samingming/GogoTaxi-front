@@ -15,6 +15,14 @@
         <button type="button" class="btn btn--ghost" :disabled="isLeavingRoom" @click="leaveRoom">
           {{ isLeavingRoom ? '나가는 중이에요...' : '방 나가기' }}
         </button>
+        <button
+          type="button"
+          class="btn btn--ghost"
+          :disabled="detailLoading"
+          @click="refreshRoomDetail"
+        >
+          {{ detailLoading ? '새로고침 중...' : '방 새로고침' }}
+        </button>
         <div class="room-live__cta">
           <button type="button" class="btn btn--primary" @click="changeSeat">좌석 다시 고르기</button>
           <button
@@ -47,7 +55,7 @@
         <div class="fare-summary">
           <div class="fare-summary__item">
             <p class="fare-summary__label">
-              내 요금 <span class="fare-summary__count">({{ participantCount }}명)</span>
+              1인당 요금 <span class="fare-summary__count">(총 {{ participantCount }}명 기준)</span>
             </p>
             <strong
               class="fare-summary__value"
@@ -63,7 +71,22 @@
             </strong>
           </div>
         </div>
-        <p class="fare-summary__hint">참여 인원에 맞춰 n분의 1로 자동 계산돼요.</p>
+        <p class="fare-summary__hint">요금은 총 인원 기준으로 계산하고, 결제는 방장 제외 인원에게만 청구돼요.</p>
+      </article>
+
+      <article v-if="rideStageLabel || taxiInfo" class="room-panel room-panel--status">
+        <h2>배차 정보</h2>
+        <p v-if="rideStageLabel" class="status-hint">{{ rideStageLabel }}</p>
+        <div v-if="taxiInfo" class="taxi-card">
+          <p class="taxi-card__title">배차 택시</p>
+          <p class="taxi-card__plate">{{ taxiInfo.carNumber ?? '차량 번호 미정' }}</p>
+          <p class="taxi-card__driver">
+            {{
+              [taxiInfo.driverName, taxiInfo.carModel].filter(Boolean).join(' · ') ||
+                '기사/차종 미정'
+            }}
+          </p>
+        </div>
       </article>
 
       <article v-if="isHost" class="room-panel room-panel--vision">
@@ -110,7 +133,7 @@
           {{ dispatchUploadError }}
         </p>
         <p v-if="dispatchHoldResult" class="vision-status vision-status--success">
-          {{ dispatchHoldResult.collectedFrom }}명의 참여자에게서 1인당
+          방장 제외 {{ dispatchHoldResult.collectedFrom }}명에게서 1인당
           {{ formatFareLabel(dispatchHoldResult.perHead) }}씩 자동 예치금을 잡았어요.
         </p>
         <p v-else-if="dispatchHoldError" class="vision-status vision-status--error">
@@ -168,6 +191,7 @@ import {
   fetchMyRooms,
   fetchRoomDetail,
   leaveRoomFromApi,
+  updateRoomFromApi,
   type RoomParticipant,
 } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
@@ -203,6 +227,21 @@ const membership = computed(
 )
 const roomDetail = ref<RoomPreview | null>(null)
 const room = computed<RoomPreview | null>(() => roomDetail.value ?? membership.value?.roomSnapshot ?? null)
+const taxiInfo = computed(() => {
+  const ride = rideState.value
+  if (ride && (ride.carNumber || ride.driverName || ride.carModel)) {
+    return {
+      carNumber: ride.carNumber,
+      driverName: ride.driverName,
+      carModel: ride.carModel,
+    }
+  }
+  const taxi = room.value?.taxi
+  if (taxi && (taxi.carNumber || taxi.driverName || taxi.carModel)) {
+    return taxi
+  }
+  return null
+})
 const seatFromQuery = computed(() => {
   const seatQuery = route.query.seat
   if (!seatQuery) return null
@@ -235,6 +274,17 @@ const dispatchHoldResult = ref<{ perHead: number; collectedFrom: number } | null
 const dispatchHoldError = ref('')
 const dispatchFileInput = ref<HTMLInputElement | null>(null)
 const currentUserId = computed(() => getCurrentUser()?.id ?? '')
+const currentUserName = computed(() => getCurrentUser()?.name ?? '')
+const isCurrentUser = (mate: RoomParticipant) => {
+  const userId = currentUserId.value.trim().toLowerCase()
+  const userName = currentUserName.value.trim().toLowerCase()
+  const candidateIds = [mate.id, mate.email, mate.name]
+    .filter((value): value is string => typeof value === 'string')
+    .map(value => value.trim().toLowerCase())
+  return Boolean(
+    (userId && candidateIds.includes(userId)) || (userName && candidateIds.includes(userName)),
+  )
+}
 const hostParticipant = computed(() => {
   const labeledHost = participantsRaw.value.find(mate =>
     mate.role?.toLowerCase().includes('host'),
@@ -248,19 +298,29 @@ const hostParticipant = computed(() => {
   })
   return sorted[0] ?? null
 })
-const hostId = computed(() => hostParticipant.value?.id ?? null)
+const hostId = computed(() => {
+  if (hostParticipant.value?.id) return hostParticipant.value.id
+  if (membership.value?.role?.toLowerCase() === 'host' && currentUserId.value) {
+    return currentUserId.value
+  }
+  return null
+})
 const isHost = computed(() => {
+  if (membership.value?.role?.toLowerCase() === 'host') return true
+  if (hostParticipant.value && isCurrentUser(hostParticipant.value)) return true
   if (!participantsRaw.value.length) return true
   if (participantsRaw.value.length === 1) return true
   return !hostId.value || hostId.value === currentUserId.value
 })
+
+const fareSyncingRooms = ref<Set<string>>(new Set())
 
 const participants = computed(() => {
   if (participantsRaw.value.length) {
     return participantsRaw.value.map((mate, index) => ({
       id: mate.id || `participant-${index}`,
       name: mate.email ?? mate.name ?? `참여자${index + 1}`,
-      role: mate.id === hostId.value ? '방장' : mate.role,
+      role: mate.role?.toLowerCase().includes('host') || mate.id === hostId.value ? '방장' : mate.role,
       seat: mate.seatNumber ?? null,
       initials: toInitials(
         mate.email ?? mate.name ?? mate.id ?? `${index + 1}`,
@@ -290,6 +350,20 @@ const perPersonFare = computed(() => {
 })
 const isPerPersonFarePending = computed(() => perPersonFare.value == null)
 const isTotalFarePending = computed(() => room.value?.fare == null)
+const rideStageLabel = computed(() => {
+  const stage = rideState.value?.stage
+  if (!stage) return ''
+  const labels: Record<RideStage, string> = {
+    pending: '배차 대기 중',
+    dispatching: '배차 진행 중',
+    accepted: '기사 배정 완료',
+    approaching: '기사님이 이동 중이에요',
+    onboard: '탑승 중',
+    completed: '운행 완료',
+    cancelled: '배차가 취소됐어요',
+  }
+  return labels[stage] ?? '배차 진행 중'
+})
 
 const uberDeepLink = computed(() => buildUberDeepLink(room.value, import.meta.env.VITE_UBER_CLIENT_ID))
 
@@ -354,6 +428,10 @@ async function loadRoomDetail(id: string) {
     roomDetail.value = mergedRoom
     participantsRaw.value = participantList
     syncRoomSnapshot(id, mergedRoom)
+    const localFare = membership.value?.roomSnapshot?.fare
+    if (isHost.value && localFare != null && mergedRoom.fare == null) {
+      void syncEstimatedFare(id, localFare)
+    }
   } catch (error) {
     detailError.value = resolveErrorMessage(error, '방 정보를 불러오지 못했어요.')
     participantsRaw.value = []
@@ -362,6 +440,22 @@ async function loadRoomDetail(id: string) {
     }
   } finally {
     detailLoading.value = false
+  }
+}
+
+async function syncEstimatedFare(roomId: string, fare: number) {
+  if (fareSyncingRooms.value.has(roomId)) return
+  fareSyncingRooms.value.add(roomId)
+  try {
+    await updateRoomFromApi(roomId, { estimatedFare: fare })
+  } catch (error) {
+    console.warn('Failed to sync estimated fare', error)
+  }
+}
+
+function refreshRoomDetail() {
+  if (roomId.value) {
+    void loadRoomDetail(roomId.value)
   }
 }
 
@@ -397,6 +491,11 @@ async function connectRealtime(id: string) {
       {
         onRoomUpdated: applyRoomPatch,
         onParticipantsUpdated: applyParticipantPatch,
+        onRoomsRefresh: payload => {
+          if (!payload.roomId || payload.roomId === id) {
+            void loadRoomDetail(id)
+          }
+        },
         onError: message => (realtimeError.value = message),
       },
       { token: resolveAuthToken() },
@@ -734,7 +833,10 @@ onBeforeUnmount(() => {
 .room-live {
   min-height: calc(100dvh - var(--header-h, 0px));
   padding: clamp(32px, 6vw, 64px) clamp(18px, 5vw, 48px);
-  padding-bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  padding-bottom: max(
+    24px,
+    calc(var(--tab-h, 0px) + var(--safe-bottom, 0px) + var(--browser-ui-bottom, 0px) + 16px)
+  );
   background: linear-gradient(180deg, #fffdf5 0%, #fff8dc 100%);
   color: #3b2f1f;
   display: grid;

@@ -907,7 +907,7 @@ async function submitForm() {
       createdRoom.fare = recognizedFare.value
     }
     if (createdRoom) {
-      rememberRoom(createdRoom)
+      rememberRoom(createdRoom, 'host')
     }
 
     successMessage.value = '방이 생성되었어요! 곧 이동합니다.'

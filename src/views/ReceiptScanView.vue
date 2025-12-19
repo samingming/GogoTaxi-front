@@ -45,6 +45,7 @@
           <dd>{{ formattedTotal }}</dd>
         </div>
       </dl>
+      <p v-if="settlementMessage" class="settlement-message">{{ settlementMessage }}</p>
     </section>
   </section>
 </template>
@@ -52,7 +53,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { ReceiptAnalysis } from '@/services/receiptService'
+import type { ReceiptAnalysis, ReceiptSettlement } from '@/services/receiptService'
 import { analyzeReceipt } from '@/services/receiptService'
 import arrowBackIcon from '@/assets/arrowback.svg'
 import { useRoomMembership } from '@/composables/useRoomMembership'
@@ -66,6 +67,7 @@ const previewUrl = ref<string | null>(null)
 const analyzing = ref(false)
 const errorMessage = ref('')
 const analysisResult = ref<ReceiptAnalysis | null>(null)
+const settlementResult = ref<ReceiptSettlement | null>(null)
 const rememberedFileName = ref('')
 
 function goBack() {
@@ -79,6 +81,7 @@ function onFileChange(event: Event) {
   selectedFile.value = file
   rememberedFileName.value = file.name
   analysisResult.value = null
+  settlementResult.value = null
   errorMessage.value = ''
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value)
@@ -91,15 +94,17 @@ async function runAnalysis() {
   analyzing.value = true
   errorMessage.value = ''
   try {
-    const result = await analyzeReceipt(selectedFile.value)
-    analysisResult.value = result
+    const roomId = currentRoomId.value ?? undefined
+    const result = await analyzeReceipt(selectedFile.value, roomId ? { roomId, action: 'finalize' } : undefined)
+    analysisResult.value = result.analysis
+    settlementResult.value = result.settlement ?? null
     rememberedFileName.value = selectedFile.value.name
-    const roomId = currentRoomId.value
     if (roomId) {
       syncSettlementSnapshot(roomId, {
-        analysis: result,
+        analysis: result.analysis,
         completedAt: new Date().toISOString(),
         fileName: rememberedFileName.value,
+        isFinal: true,
       })
     }
   } catch (error) {
@@ -135,6 +140,7 @@ watch(
       if (!selectedFile.value) {
         analysisResult.value = null
       }
+      settlementResult.value = null
       return
     }
     analysisResult.value = snapshot.analysis ?? null
@@ -157,6 +163,17 @@ const formattedTotal = computed(() => {
   const formatter = new Intl.NumberFormat('ko-KR')
   const currency = analysisResult.value.currency ? ` ${analysisResult.value.currency}` : ''
   return `${formatter.format(analysisResult.value.totalAmount)}${currency}`
+})
+
+const settlementMessage = computed(() => {
+  const settlement = settlementResult.value
+  if (!settlement || settlement.action !== 'finalize') return ''
+  if (settlement.delta == null) return '정산이 완료되었습니다.'
+  if (settlement.delta === 0) return '추가 정산 없이 종료되었습니다.'
+  if (settlement.delta > 0) {
+    return `예상보다 ${settlement.delta.toLocaleString('ko-KR')}원 더 나와 추가 정산되었습니다.`
+  }
+  return `예상보다 ${Math.abs(settlement.delta).toLocaleString('ko-KR')}원 적게 나와 환급되었습니다.`
 })
 </script>
 
@@ -321,6 +338,12 @@ const formattedTotal = computed(() => {
 .result-card dd {
   margin: 0;
   font-size: 1.1rem;
+}
+
+.settlement-message {
+  margin: 4px 0 0;
+  color: #8a5a26;
+  font-size: 0.95rem;
 }
 
 .items__title,

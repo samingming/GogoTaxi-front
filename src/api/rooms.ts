@@ -181,6 +181,21 @@ export async function joinRoomFromApi(roomId: string, seatNumber?: number | null
   }
 }
 
+export async function updateRoomFromApi(
+  roomId: string,
+  payload: { estimatedFare?: number },
+) {
+  if (!roomId) {
+    throw new Error('방 ID가 필요해요.')
+  }
+  const url = buildRoomDetailUrl(roomId)
+  try {
+    await apiClient.patch(url, payload)
+  } catch (error) {
+    throw formatError(error)
+  }
+}
+
 
 function buildLeaveUrl(roomId: string) {
   if (LEAVE_TEMPLATE.includes(':id')) {

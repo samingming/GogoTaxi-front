@@ -39,6 +39,14 @@
           <button
             type="button"
             class="sheet__toggle"
+            :disabled="isLoadingRooms"
+            @click.stop="loadRooms"
+          >
+            {{ isLoadingRooms ? '새로고침 중...' : '새로고침' }}
+          </button>
+          <button
+            type="button"
+            class="sheet__toggle"
             aria-label="방 만들기 페이지로 이동"
             @click.stop="goToCreateRoom"
           >
@@ -182,6 +190,7 @@ import SortOptionsModal from '@/components/SortOptionsModal.vue'
 import { fetchAvailableRooms } from '@/api/rooms'
 import type { RoomPreview, GeoPoint } from '@/types/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
+import { connectRoomsRefresh } from '@/services/roomSocket'
 
 const COLLAPSED_SHEET = 22
 const MID_SHEET = 60
@@ -190,7 +199,7 @@ const SHEET_STATES = [COLLAPSED_SHEET, MID_SHEET, MAX_SHEET] as const
 const SNAP_THRESHOLD = 6
 
 const router = useRouter()
-const { joinRoom: rememberRoom } = useRoomMembership()
+const { joinRoom: rememberRoom, joinedRooms } = useRoomMembership()
 const rooms = ref<RoomPreview[]>([])
 const selectedRoom = ref<RoomPreview | null>(null)
 const isLoadingRooms = ref(false)
@@ -201,10 +210,11 @@ const roomsStatusMessage = computed(() => {
   return ''
 })
 const hasRoomsStatus = computed(() => Boolean(roomsStatusMessage.value))
-type SortMode = 'default' | 'nearest-departure' | 'nearest-arrival' | 'departure-time'
+type SortMode = 'recent' | 'default' | 'nearest-departure' | 'nearest-arrival' | 'departure-time'
 type SelectedLocation = { position: GeoPoint; label: string }
-const sortMode = ref<SortMode>('default')
+const sortMode = ref<SortMode>('recent')
 const sortModes = [
+  { value: 'recent', label: '최근 생성 순' },
   { value: 'default', label: '기본' },
   { value: 'nearest-departure', label: '출발지 가까운 순' },
   { value: 'nearest-arrival', label: '희망 도착지 가까운 순' },
@@ -230,7 +240,7 @@ const draftPreferredHour = ref('')
 const draftPreferredMinute = ref('')
 const pickerContext = ref<'applied' | 'draft'>('applied')
 const timePickerContext = ref<'applied' | 'draft'>('applied')
-const SORT_PARAM_MAP: Record<SortMode, string> = {
+const SORT_PARAM_MAP: Partial<Record<SortMode, string>> = {
   default: 'default',
   'nearest-departure': 'departureDistance',
   'nearest-arrival': 'arrivalDistance',
@@ -283,7 +293,19 @@ const hasDraftPreferredTime = computed(
   () => Boolean(draftPreferredHour.value && draftPreferredMinute.value),
 )
 
-const sortedRooms = computed(() => rooms.value)
+const joinedRoomIds = computed(() => new Set(joinedRooms.value.map(entry => entry.roomId)))
+const sortedRooms = computed(() =>
+  rooms.value.filter(room => !joinedRoomIds.value.has(room.id)),
+)
+
+watch(
+  () => sortedRooms.value,
+  nextRooms => {
+    if (selectedRoom.value && !nextRooms.some(room => room.id === selectedRoom.value?.id)) {
+      selectedRoom.value = null
+    }
+  },
+)
 
 const hintSortMode = computed(() => (showSortOptions.value ? draftSortMode.value : sortMode.value))
 const hintDesiredDeparture = computed(() =>
@@ -476,8 +498,11 @@ function handleTimeConfirm(payload: { period: 'AM' | 'PM'; hour: string; minute:
 }
 
 function buildRoomQueryParams() {
-  const normalizedSort = SORT_PARAM_MAP[sortMode.value] ?? sortMode.value
-  const params: Record<string, string | number | undefined> = { sortBy: normalizedSort }
+  const normalizedSort = SORT_PARAM_MAP[sortMode.value]
+  const params: Record<string, string | number | undefined> = {}
+  if (normalizedSort) {
+    params.sortBy = normalizedSort
+  }
 
   if (sortMode.value === 'nearest-departure') {
     const anchor = desiredDeparture.value?.position ?? userLocation.value
@@ -551,6 +576,7 @@ const mapAreaStyle = computed(() => {
 let startY = 0
 let startHeight = MID_SHEET
 let resizeObserver: ResizeObserver | null = null
+const disconnectRoomsRefresh = ref<null | (() => void)>(null)
 
 function updateCollapsedSheetHeight() {
   if (!isCollapsed.value) return
@@ -703,6 +729,7 @@ watch(selectedRoom, () => {
 onMounted(() => {
   updateAvailableHeight()
   loadRooms()
+  void setupRoomsRefresh()
   if (viewRef.value && 'ResizeObserver' in window) {
     resizeObserver = new ResizeObserver(() => {
       updateAvailableHeight()
@@ -722,7 +749,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointercancel', onPointerCancel)
   window.removeEventListener('resize', handleResize)
   resizeObserver?.disconnect()
+  disconnectRoomsRefresh.value?.()
 })
+
+async function setupRoomsRefresh() {
+  const disconnect = await connectRoomsRefresh(() => loadRooms())
+  disconnectRoomsRefresh.value = disconnect
+}
 </script>
 
 <style scoped>
@@ -893,8 +926,11 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow-y: auto;
   overflow-anchor: none;
-  padding: clamp(6px, 1.6vw, 10px) clamp(18px, 4vw, 26px) clamp(18px, 3.6vw, 26px);
-  scroll-padding-bottom: var(--tab-h);
+  padding: clamp(6px, 1.6vw, 10px) clamp(18px, 4vw, 26px)
+    calc(var(--tab-h, 0px) + var(--safe-bottom, 0px) + var(--browser-ui-bottom, 0px) + 16px);
+  scroll-padding-bottom: calc(
+    var(--tab-h, 0px) + var(--safe-bottom, 0px) + var(--browser-ui-bottom, 0px) + 16px
+  );
   display: flex;
   flex-direction: column;
   align-items: center;

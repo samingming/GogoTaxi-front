@@ -29,7 +29,14 @@
           />
         </div>
         <div class="field">
-          <input v-model="birthDate" type="date" placeholder="생년월일" />
+          <input
+            v-model="birthDate"
+            type="text"
+            inputmode="numeric"
+            autocomplete="bday"
+            placeholder="생년월일 (YYYY-MM-DD)"
+            @input="onBirthInput"
+          />
         </div>
 
         <template v-if="!isPendingSocial">
@@ -198,6 +205,18 @@ function onPhoneInput(event: Event) {
   const target = event.target as HTMLInputElement
   const formatted = formatPhone(target.value)
   phone.value = formatted
+}
+
+function formatBirth(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 4) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`
+}
+
+function onBirthInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  birthDate.value = formatBirth(target.value)
 }
 
 function checkId() {
