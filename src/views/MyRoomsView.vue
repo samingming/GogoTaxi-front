@@ -84,10 +84,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchMyRooms, leaveRoomFromApi } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
+import type { JoinedRoomEntry } from '@/composables/useRoomMembership'
 import type { RoomPreview } from '@/types/rooms'
 
 const router = useRouter()
-const { joinedRooms, leaveRoom, setActiveRoom, replaceRooms } = useRoomMembership()
+const { joinedRooms, leaveRoom, setActiveRoom, replaceRooms, completedRooms } = useRoomMembership()
 const isLoading = ref(false)
 const errorMessage = ref('')
 const lastUpdatedAt = ref<string | null>(null)
@@ -95,7 +96,12 @@ const leavingRoomId = ref<string | null>(null)
 
 const STATUS_META: Partial<Record<NonNullable<RoomPreview['status']>, { label: string }>> = {
   recruiting: { label: '모집 중' },
+  requesting: { label: '호출 준비' },
+  matching: { label: '배차 중' },
   dispatching: { label: '배차 중' },
+  driver_assigned: { label: '배차 완료' },
+  arriving: { label: '픽업 이동 중' },
+  aboard: { label: '이동 중' },
   success: { label: '탑승 완료' },
   failed: { label: '탑승 실패' },
 }
@@ -114,7 +120,11 @@ type RoomCard = {
   joinedAtLabel: string
   statusLabel: string
   statusKey: string
+  role?: string
+  dispatchSnapshot?: JoinedRoomEntry['dispatchSnapshot']
 }
+
+const completedRoomIds = computed(() => new Set(completedRooms.value.map(entry => entry.roomId)))
 
 const statusMessage = computed(() => {
   if (isLoading.value || errorMessage.value) return ''
@@ -128,19 +138,30 @@ const statusMessage = computed(() => {
 })
 
 const roomCards = computed<RoomCard[]>(() =>
-  joinedRooms.value.map(entry => {
-    const room = entry.roomSnapshot
-    const statusKey = room.status ?? 'recruiting'
-    const joinedAtLabel = formatJoinedAt(entry.joinedAt)
-    return {
-      roomId: entry.roomId,
-      room,
-      seatNumber: entry.seatNumber,
-      joinedAtLabel,
-      statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
-      statusKey,
-    }
-  }),
+  joinedRooms.value
+    .filter(entry => !completedRoomIds.value.has(entry.roomId))
+    .map(entry => {
+      const room = entry.roomSnapshot
+      const hasDispatchEvidence = Boolean(
+        entry.dispatchSnapshot?.analysis ||
+          entry.dispatchSnapshot?.message ||
+          entry.dispatchSnapshot?.completedAt,
+      )
+      const statusKey = hasDispatchEvidence
+        ? 'driver_assigned'
+        : room.status ?? 'recruiting'
+      const joinedAtLabel = formatJoinedAt(entry.joinedAt)
+      return {
+        roomId: entry.roomId,
+        room,
+        seatNumber: entry.seatNumber,
+        joinedAtLabel,
+        statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
+        statusKey,
+        role: entry.role,
+        dispatchSnapshot: entry.dispatchSnapshot,
+      }
+    }),
 )
 
 function formatJoinedAt(iso: string) {
@@ -320,7 +341,20 @@ async function dropRoom(roomId: string) {
   color: #15803d;
 }
 
+.room-card__status--driver_assigned {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(74, 222, 128, 0.4));
+  color: #15803d;
+}
+
 .room-card__status--dispatching {
+  background: rgba(254, 240, 138, 0.9);
+  color: #a16207;
+}
+
+.room-card__status--requesting,
+.room-card__status--matching,
+.room-card__status--arriving,
+.room-card__status--aboard {
   background: rgba(254, 240, 138, 0.9);
   color: #a16207;
 }
@@ -385,8 +419,8 @@ async function dropRoom(roomId: string) {
   border-radius: 18px;
   border: none;
   padding: 12px 18px;
-  background: rgba(187, 247, 208, 0.9);
-  color: #15803d;
+  background: rgba(34, 197, 94, 0.18);
+  color: #0f8f3a;
   font-weight: 700;
 }
 

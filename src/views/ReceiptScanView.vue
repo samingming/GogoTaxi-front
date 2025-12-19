@@ -13,7 +13,7 @@
     <div class="upload-card">
       <label class="file-input">
         <input type="file" accept="image/*" @change="onFileChange" />
-        <span>{{ selectedFile ? selectedFile.name : '영수증 이미지를 선택해 주세요.' }}</span>
+        <span>{{ fileLabel }}</span>
       </label>
       <p class="helper">
         Gemini Vision을 통해 Uber 영수증에서 총 금액을 추출해 정산에 활용할 수 있어요.
@@ -50,19 +50,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { ReceiptAnalysis } from '@/services/receiptService'
 import { analyzeReceipt } from '@/services/receiptService'
 import arrowBackIcon from '@/assets/arrowback.svg'
+import { useRoomMembership } from '@/composables/useRoomMembership'
 
 const router = useRouter()
+const route = useRoute()
+const { joinedRooms, activeRoomId, syncSettlementSnapshot } = useRoomMembership()
 const backIcon = arrowBackIcon
 const selectedFile = ref<File | null>(null)
 const previewUrl = ref<string | null>(null)
 const analyzing = ref(false)
 const errorMessage = ref('')
 const analysisResult = ref<ReceiptAnalysis | null>(null)
+const rememberedFileName = ref('')
 
 function goBack() {
   router.back()
@@ -73,6 +77,7 @@ function onFileChange(event: Event) {
   const file = target.files?.[0]
   if (!file) return
   selectedFile.value = file
+  rememberedFileName.value = file.name
   analysisResult.value = null
   errorMessage.value = ''
   if (previewUrl.value) {
@@ -88,6 +93,15 @@ async function runAnalysis() {
   try {
     const result = await analyzeReceipt(selectedFile.value)
     analysisResult.value = result
+    rememberedFileName.value = selectedFile.value.name
+    const roomId = currentRoomId.value
+    if (roomId) {
+      syncSettlementSnapshot(roomId, {
+        analysis: result,
+        completedAt: new Date().toISOString(),
+        fileName: rememberedFileName.value,
+      })
+    }
   } catch (error) {
     console.error('Receipt analysis failed', error)
     const message = error instanceof Error ? error.message : ''
@@ -96,6 +110,46 @@ async function runAnalysis() {
     analyzing.value = false
   }
 }
+
+const currentRoomId = computed(() => {
+  const queryId = route.query.roomId
+  if (typeof queryId === 'string' && queryId.trim()) return queryId
+  if (Array.isArray(queryId) && queryId[0]) return queryId[0]
+  return activeRoomId.value ?? null
+})
+
+const settlementSnapshot = computed(() => {
+  const id = currentRoomId.value
+  if (!id) return null
+  const entry = joinedRooms.value.find(item => item.roomId === id)
+  return entry?.settlementSnapshot ?? null
+})
+
+watch(
+  () => settlementSnapshot.value,
+  snapshot => {
+    if (!snapshot) {
+      if (!selectedFile.value) {
+        rememberedFileName.value = ''
+      }
+      if (!selectedFile.value) {
+        analysisResult.value = null
+      }
+      return
+    }
+    analysisResult.value = snapshot.analysis ?? null
+    if (!selectedFile.value) {
+      rememberedFileName.value = snapshot.fileName ?? ''
+    }
+  },
+  { immediate: true },
+)
+
+const fileLabel = computed(() => {
+  if (selectedFile.value) return selectedFile.value.name
+  if (rememberedFileName.value) return `${rememberedFileName.value} (저장됨)`
+  return '영수증 이미지를 선택해 주세요.'
+})
 
 const formattedTotal = computed(() => {
   if (!analysisResult.value) return '-'
@@ -113,7 +167,7 @@ const formattedTotal = computed(() => {
     calc(100dvh - var(--header-h) - var(--tab-h) - var(--safe-bottom) - var(--browser-ui-bottom))
   );
   padding: 2rem 1.25rem calc(3rem + var(--safe-bottom));
-  background: #3a2e20;
+  background: #fff7e1;
   display: flex;
   flex-direction: column;
   align-items: center;

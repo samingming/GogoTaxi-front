@@ -14,6 +14,7 @@
               type="text"
               maxlength="25"
               placeholder="꼬꼬택과 고고 택시~"
+              :class="{ 'is-empty': !form.title }"
             />
           </label>
 
@@ -25,6 +26,7 @@
                 type="text"
                 placeholder="예) 강남역 5번 출구"
                 autocomplete="off"
+                :class="{ 'is-empty': !departureQuery }"
                 @focus="setActiveField('departure')"
                 @blur="handleBlur('departure')"
               />
@@ -68,6 +70,7 @@
                 type="text"
                 placeholder="예) 인천국제공항 T1"
                 autocomplete="off"
+                :class="{ 'is-empty': !arrivalQuery }"
                 @focus="setActiveField('arrival')"
                 @blur="handleBlur('arrival')"
               />
@@ -177,7 +180,7 @@
 
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TimePicker from '@/components/TimePicker.vue'
 import FareInfoCard from '@/components/FareInfoCard.vue'
@@ -225,6 +228,7 @@ function isMinuteOption(value: string): value is MinuteOption {
 }
 const router = useRouter()
 const { joinRoom: rememberRoom } = useRoomMembership()
+const STORAGE_KEY = 'create-room-draft-v1'
 
 const form = reactive({
   title: '',
@@ -261,7 +265,7 @@ const isSubmitting = ref(false)
 const recognizedFare = ref<number | null>(null)
 const farePending = ref(true)
 
-const isValid = computed(() => {
+const hasRouteAndTime = computed(() => {
   return (
     Boolean(form.departure) &&
     Boolean(form.arrival) &&
@@ -269,6 +273,141 @@ const isValid = computed(() => {
     form.departure?.id !== form.arrival?.id
   )
 })
+
+const isFareDetermined = computed(
+  () => recognizedFare.value !== null && !farePending.value,
+)
+
+const isValid = computed(() => hasRouteAndTime.value && isFareDetermined.value)
+
+type DraftPayload = {
+  title: string
+  departure: SelectedPlace | null
+  arrival: SelectedPlace | null
+  departureQuery: string
+  arrivalQuery: string
+  departureTime: string
+  recognizedFare: number | null
+  farePending: boolean
+}
+
+function serializeDraft(): DraftPayload {
+  return {
+    title: form.title,
+    departure: form.departure,
+    arrival: form.arrival,
+    departureQuery: departureQuery.value,
+    arrivalQuery: arrivalQuery.value,
+    departureTime: form.departureTime,
+    recognizedFare: recognizedFare.value,
+    farePending: farePending.value,
+  }
+}
+
+function isValidPosition(value: unknown): value is { lat: number; lng: number } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { lat?: unknown }).lat === 'number' &&
+    typeof (value as { lng?: unknown }).lng === 'number'
+  )
+}
+
+function normalizePlace(value: unknown): SelectedPlace | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as Partial<SelectedPlace>
+  if (
+    typeof candidate.id !== 'string' ||
+    typeof candidate.name !== 'string' ||
+    typeof candidate.address !== 'string' ||
+    !isValidPosition((candidate as { position?: unknown }).position)
+  ) {
+    return null
+  }
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    address: candidate.address,
+    position: {
+      lat: (candidate.position as { lat: number }).lat,
+      lng: (candidate.position as { lng: number }).lng,
+    },
+  }
+}
+
+function saveDraft() {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeDraft()))
+  } catch (error) {
+    console.warn('Failed to persist create-room draft', error)
+  }
+}
+
+function clearDraft() {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch (error) {
+    console.warn('Failed to clear create-room draft', error)
+  }
+}
+
+function restoreDraft() {
+  if (typeof window === 'undefined') return
+  let raw: string | null = null
+  try {
+    raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw) as Partial<DraftPayload>
+    form.title = typeof parsed.title === 'string' ? parsed.title : form.title
+    const storedDeparture = normalizePlace(parsed.departure)
+    const storedArrival = normalizePlace(parsed.arrival)
+    if (storedDeparture) {
+      form.departure = storedDeparture
+      suppressSearch.departure = true
+      departureQuery.value = storedDeparture.name
+    }
+    if (storedArrival) {
+      form.arrival = storedArrival
+      suppressSearch.arrival = true
+      arrivalQuery.value = storedArrival.name
+    }
+    if (typeof parsed.departureQuery === 'string') {
+      departureQuery.value = parsed.departureQuery
+    }
+    if (typeof parsed.arrivalQuery === 'string') {
+      arrivalQuery.value = parsed.arrivalQuery
+    }
+    if (typeof parsed.departureTime === 'string' && parsed.departureTime.includes(':')) {
+      form.departureTime = parsed.departureTime
+      setTimePickerState(parsed.departureTime)
+    }
+    if (typeof parsed.recognizedFare === 'number' && Number.isFinite(parsed.recognizedFare)) {
+      recognizedFare.value = parsed.recognizedFare
+    }
+    if (typeof parsed.farePending === 'boolean') {
+      farePending.value = parsed.farePending
+    }
+  } catch (error) {
+    console.warn('Failed to restore create-room draft', error, raw)
+  }
+}
+
+watch(
+  [
+    () => form.title,
+    () => form.departure,
+    () => form.arrival,
+    () => form.departureTime,
+    departureQuery,
+    arrivalQuery,
+    recognizedFare,
+    farePending,
+  ],
+  saveDraft,
+  { deep: true },
+)
 
 const preview = computed(() => ({
   title: form.title.trim() || '꼬꼬택과 고고 택시~',
@@ -320,6 +459,10 @@ loadKakaoMaps().then((kakao) => {
   kakaoApi = kakao
   placesService = new kakao.maps.services.Places()
   geocoder = new kakao.maps.services.Geocoder()
+})
+
+onMounted(() => {
+  restoreDraft()
 })
 
 const searchTimers: Record<FieldKind, ReturnType<typeof setTimeout> | null> = {
@@ -639,6 +782,7 @@ function resetForm() {
   farePending.value = true
   errorMessage.value = ''
   successMessage.value = ''
+  clearDraft()
 }
 
 function toLocationPayload(place: SelectedPlace) {
@@ -713,12 +857,17 @@ async function submitForm() {
 
 
 
-  if (!isValid.value) {
+  if (!hasRouteAndTime.value) {
 
     errorMessage.value = '필수 정보를 모두 입력해 주세요.'
 
     return
 
+  }
+
+  if (!isFareDetermined.value) {
+    errorMessage.value = '요금 책정까지 완료하면 방을 생성할 수 있어요. 영수증을 업로드해 주세요.'
+    return
   }
 
 
@@ -775,6 +924,7 @@ async function submitForm() {
 
       }
 
+      clearDraft()
       resetForm()
 
     }, 500)
@@ -888,10 +1038,16 @@ fieldset.field,
   transition: border 0.2s ease;
 }
 
+.field input.is-empty,
+.field select.is-empty,
+.field textarea.is-empty {
+  color: #c4c4c4;
+}
+
 .field input::placeholder,
 .field select::placeholder,
 .field textarea::placeholder {
-  color: rgba(161, 98, 7, 0.85);
+  color: rgba(0, 0, 0, 0.28);
 }
 
 .field input:focus,

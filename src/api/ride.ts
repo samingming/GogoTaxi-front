@@ -37,12 +37,47 @@ export type RideState = {
   updatedAt?: string
 }
 
+export type DispatchAnalysis = {
+  driverName: string | null
+  carNumber: string | null
+  carModel: string | null
+  summary?: string | null
+  rawText?: string | null
+  modelLatencyMs?: number
+}
+
+export type DispatchAnalysisPayload = {
+  imageBase64: string
+  mimeType?: string
+  prompt?: string
+}
+
+export type DispatchAnalysisResult = {
+  analysis: DispatchAnalysis | null
+  driver?: {
+    name: string | null
+    carModel: string | null
+    carNumber: string | null
+  }
+  rideState?: RideState | null
+  settlementHold?: {
+    perHead: number
+    collectedFrom: number
+  } | null
+  settlementHoldError?: {
+    code: string
+    message: string
+  } | null
+}
+
 const REQUEST_TEMPLATE =
   import.meta.env.VITE_RIDE_REQUEST_PATH?.trim() || '/api/rooms/:id/ride/request'
 const STAGE_TEMPLATE =
   import.meta.env.VITE_RIDE_STAGE_PATH?.trim() || '/api/rooms/:id/ride/stage'
 const STATE_TEMPLATE =
   import.meta.env.VITE_RIDE_STATE_PATH?.trim() || '/api/rooms/:id/ride-state'
+const DISPATCH_TEMPLATE =
+  import.meta.env.VITE_RIDE_DISPATCH_INFO_PATH?.trim() || '/api/rooms/:id/ride/dispatch-info'
 
 export async function requestRide(
   roomId: string,
@@ -74,9 +109,29 @@ export async function fetchRideState(roomId: string): Promise<RideState> {
   const url = buildRideUrl(STATE_TEMPLATE, roomId)
   try {
     const res = await apiClient.get(url)
-    return normalizeRideState(res.data)
+    return normalizeRideState(res.data?.rideState ?? res.data)
   } catch (error) {
     throw normalizeRideError(error, '배차 상태를 불러오지 못했어요.')
+  }
+}
+
+export async function analyzeDispatchScreenshot(
+  roomId: string,
+  payload: DispatchAnalysisPayload,
+): Promise<DispatchAnalysisResult> {
+  const url = buildRideUrl(DISPATCH_TEMPLATE, roomId)
+  try {
+    const res = await apiClient.post(url, payload)
+    const rideState = res.data?.rideState ? normalizeRideState(res.data.rideState) : undefined
+    return {
+      analysis: normalizeDispatchAnalysis(res.data?.analysis),
+      driver: normalizeDriver(res.data?.driver),
+      rideState,
+      settlementHold: normalizeSettlementHold(res.data?.settlementHold),
+      settlementHoldError: normalizeSettlementError(res.data?.settlementHoldError),
+    }
+  } catch (error) {
+    throw normalizeRideError(error, '스크린샷을 분석하지 못했어요.')
   }
 }
 
@@ -107,8 +162,9 @@ function normalizeRideRequest(raw: unknown): RideRequestResponse {
 }
 
 function normalizeRideState(raw: unknown): RideState {
-  if (raw && typeof raw === 'object') {
-    const data = raw as Record<string, unknown>
+  const payload = extractRideStatePayload(raw)
+  if (payload && typeof payload === 'object') {
+    const data = payload as Record<string, unknown>
     const stage = pickStage(data.stage)
     if (!stage) {
       throw new Error('배차 단계 정보가 없어요.')
@@ -153,13 +209,18 @@ function pickStage(value: unknown): RideStage | undefined {
     pending: 'pending',
     waiting: 'pending',
     request: 'pending',
+    idle: 'pending',
+    requesting: 'pending',
+    deeplink_ready: 'pending',
     dispatching: 'dispatching',
     searching: 'dispatching',
     matching: 'dispatching',
     accepted: 'accepted',
     assigned: 'accepted',
+    driver_assigned: 'accepted',
     approaching: 'approaching',
     enroute: 'approaching',
+    arriving: 'approaching',
     onboard: 'onboard',
     riding: 'onboard',
     completed: 'completed',
@@ -169,6 +230,70 @@ function pickStage(value: unknown): RideStage | undefined {
     failed: 'cancelled',
   }
   return dictionary[stage]
+}
+
+function extractRideStatePayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw
+  const candidate = raw as {
+    rideState?: unknown
+    ride_state?: unknown
+  }
+  if (candidate.rideState && typeof candidate.rideState === 'object') {
+    return candidate.rideState
+  }
+  if (candidate.ride_state && typeof candidate.ride_state === 'object') {
+    return candidate.ride_state
+  }
+  return raw
+}
+
+function normalizeDispatchAnalysis(raw: unknown): DispatchAnalysis | null {
+  if (!raw || typeof raw !== 'object') return null
+  const data = raw as Record<string, unknown>
+  return {
+    driverName: pickNullableString(data.driverName),
+    carNumber: pickNullableString(data.carNumber),
+    carModel: pickNullableString(data.carModel),
+    summary: pickNullableString(data.summary),
+    rawText: pickNullableString(data.rawText),
+    modelLatencyMs: typeof data.modelLatencyMs === 'number' ? data.modelLatencyMs : undefined,
+  }
+}
+
+function normalizeDriver(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return undefined
+  const data = raw as Record<string, unknown>
+  return {
+    name: pickNullableString(data.name),
+    carModel: pickNullableString(data.carModel),
+    carNumber: pickNullableString(data.carNumber),
+  }
+}
+
+function normalizeSettlementHold(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return null
+  const data = raw as Record<string, unknown>
+  const perHead = pickNumber(data.perHead, data.per_head)
+  const collectedFrom = pickNumber(data.collectedFrom, data.collected_from)
+  if (perHead == null || collectedFrom == null) return null
+  return { perHead, collectedFrom }
+}
+
+function normalizeSettlementError(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return null
+  const data = raw as Record<string, unknown>
+  return {
+    code: pickNullableString(data.code) ?? 'UNKNOWN',
+    message: pickNullableString(data.message) ?? '자동 정산 처리 중 오류가 발생했습니다.',
+  }
+}
+
+function pickNullableString(value: unknown) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.length ? trimmed : null
+  }
+  return null
 }
 
 function normalizeRideError(error: unknown, fallback: string) {
