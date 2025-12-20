@@ -11,6 +11,7 @@ export type RoomLocation = {
 export type RoomPreview = {
   id: string
   title: string
+  creatorId?: string
   departure: RoomLocation
   arrival: RoomLocation
   time: string

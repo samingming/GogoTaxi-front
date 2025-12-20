@@ -53,3 +53,23 @@ export async function analyzeReceipt(file: File, options?: AnalyzeReceiptOptions
     throw new Error(message)
   }
 }
+
+export async function finalizeReceiptSettlement(file: File, roomId: string) {
+  const base64 = await fileToBase64(file)
+  const cleanBase64 = base64.includes(',') ? base64.split(',').pop() ?? base64 : base64
+  try {
+    const { data } = await apiClient.post<{ analysis: ReceiptAnalysis; settlement?: ReceiptSettlement | null }>(
+      `/api/settlements/rooms/${roomId}/finalize/receipt`,
+      {
+        imageBase64: cleanBase64,
+        mimeType: file.type || 'image/png',
+      },
+    )
+    return data
+  } catch (error) {
+    const message =
+      (error as any)?.response?.data?.message ??
+      (error instanceof Error ? error.message : '영수증 정산에 실패했습니다.')
+    throw new Error(message)
+  }
+}

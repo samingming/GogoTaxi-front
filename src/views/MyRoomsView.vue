@@ -90,11 +90,13 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchMyRooms, leaveRoomFromApi } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
+import { getCurrentUser } from '@/services/auth'
 import type { JoinedRoomEntry } from '@/composables/useRoomMembership'
 import type { RoomPreview } from '@/types/rooms'
 import { connectRoomsRefresh } from '@/services/roomSocket'
 
 const router = useRouter()
+const currentUserId = computed(() => getCurrentUser()?.id ?? '')
 const { joinedRooms, leaveRoom, setActiveRoom, replaceRooms, completedRooms } = useRoomMembership()
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -130,10 +132,9 @@ type RoomCard = {
   statusKey: string
   role?: string
   isHost: boolean
-  dispatchSnapshot?: JoinedRoomEntry['dispatchSnapshot']
-  isHost: boolean
   canSettle: boolean
   leaveLocked: boolean
+  dispatchSnapshot?: JoinedRoomEntry['dispatchSnapshot']
 }
 
 const completedRoomIds = computed(() => new Set(completedRooms.value.map(entry => entry.roomId)))
@@ -166,12 +167,9 @@ const roomCards = computed<RoomCard[]>(() =>
         ? 'driver_assigned'
         : room.status ?? 'recruiting'
       const joinedAtLabel = formatJoinedAt(entry.joinedAt)
-      const roleLabel = (entry.role ?? '').toLowerCase()
       const isHost =
-        roleLabel.includes('host') ||
-        roleLabel.includes('방장') ||
-        roleLabel.includes('leader') ||
-        entry.seatNumber === 1
+        isHostRole(entry.role) ||
+        isCreator(room, currentUserId.value)
       const canSettle = isHost && hasDispatchEvidence
       const leaveLockedStatuses = new Set(['driver_assigned', 'arriving', 'aboard', 'success'])
       const leaveLocked = leaveLockedStatuses.has(statusKey)
@@ -183,9 +181,8 @@ const roomCards = computed<RoomCard[]>(() =>
         statusLabel: STATUS_META[statusKey as keyof typeof STATUS_META]?.label ?? '모집 중',
         statusKey,
         role: entry.role,
-        isHost: isHostRole(entry.role),
-        dispatchSnapshot: entry.dispatchSnapshot,
         isHost,
+        dispatchSnapshot: entry.dispatchSnapshot,
         canSettle,
         leaveLocked,
       }
@@ -195,7 +192,17 @@ const roomCards = computed<RoomCard[]>(() =>
 function isHostRole(role?: string) {
   if (!role) return false
   const normalized = role.trim().toLowerCase()
-  return normalized.includes('host') || normalized.includes('??')
+  return (
+    normalized.includes('host') ||
+    normalized.includes('\\ubc29\\uc7a5') ||
+    normalized.includes('leader')
+  )
+}
+
+function isCreator(room: RoomPreview, userId: string) {
+  if (!userId) return false
+  const creatorId = room.creatorId ? String(room.creatorId).trim() : ''
+  return creatorId !== '' && creatorId === userId
 }
 
 function formatJoinedAt(iso: string) {
@@ -210,7 +217,7 @@ function goFindRoom() {
 
 function goToSettlement(roomId: string) {
   if (!roomId) return
-  router.push({ name: 'split-payment', query: { roomId } })
+  router.push({ name: 'receipt-scan', query: { roomId } })
 }
 
 function resolveErrorMessage(err: unknown, fallback: string) {

@@ -147,7 +147,8 @@ function btnClass(name: string) {
   border-top: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 -12px 26px rgba(40, 30, 20, 0.16);
   z-index: 10000;
-  transform: translateZ(0);
+  transform: translateY(var(—keyboard-offset, 0px)) translateZ(0);
+  will-change: transform;
 }
 .tab-btn {
   appearance: none;

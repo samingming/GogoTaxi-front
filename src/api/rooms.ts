@@ -494,6 +494,16 @@ function normalizeRoomPreview(rawInput: RawRoom): RoomPreview {
   const id =
     pickString([rawInput.roomId, roomCandidate.id, roomCandidate.roomId]) ||
     `room-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const creatorId = pickString([
+    roomCandidate.creatorId,
+    roomCandidate.creator,
+    roomCandidate.hostId,
+    roomCandidate.ownerId,
+    rawInput.creatorId,
+    rawInput.creator,
+    rawInput.hostId,
+    rawInput.ownerId,
+  ])
   const title =
     pickString([roomCandidate.title, roomCandidate.name, rawInput.title, rawInput.name]) ||
     '나의 택시 방'
@@ -553,6 +563,7 @@ function normalizeRoomPreview(rawInput: RawRoom): RoomPreview {
   return {
     id: String(id),
     title,
+    creatorId: creatorId || undefined,
     departure,
     arrival,
     time,

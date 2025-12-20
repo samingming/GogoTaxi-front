@@ -23,51 +23,57 @@
       <div v-if="previewUrl" class="preview">
         <img :src="previewUrl" alt="선택된 영수증 이미지 미리보기" />
       </div>
+
+      <div v-if="hasAmount" class="amount-tile">
+        <p class="amount-tile__label">총 금액</p>
+        <p class="amount-tile__value">{{ formattedTotal }}</p>
+        <p class="amount-tile__meta">{{ amountMeta }}</p>
+      </div>
+
       <button
+        v-else
         type="button"
         class="primary-btn"
         :disabled="!selectedFile || analyzing"
         @click="runAnalysis"
       >
-        {{ analyzing ? '분석 중...' : '영수증 인식하기' }}
+        {{ analyzeButtonLabel }}
       </button>
     </div>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
-    <section v-if="analysisResult" class="result-card">
-      <header>
-        <h2>인식 결과</h2>
-      </header>
-      <dl>
-        <div>
-          <dt>총 금액</dt>
-          <dd>{{ formattedTotal }}</dd>
-        </div>
-      </dl>
-      <p v-if="settlementMessage" class="settlement-message">{{ settlementMessage }}</p>
-    </section>
+    <div v-if="hasAmount" class="confirm-area">
+      <button
+        type="button"
+        class="primary-btn confirm-btn"
+        :disabled="finalizing || !selectedFile"
+        @click="finalizeSettlement"
+      >
+        확인
+      </button>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { ReceiptAnalysis, ReceiptSettlement } from '@/services/receiptService'
-import { analyzeReceipt } from '@/services/receiptService'
+import type { ReceiptAnalysis } from '@/services/receiptService'
+import { analyzeReceipt, finalizeReceiptSettlement } from '@/services/receiptService'
 import arrowBackIcon from '@/assets/arrowback.svg'
 import { useRoomMembership } from '@/composables/useRoomMembership'
 
 const router = useRouter()
 const route = useRoute()
-const { joinedRooms, activeRoomId, syncSettlementSnapshot } = useRoomMembership()
+const { joinedRooms, activeRoomId, syncSettlementSnapshot, completeRoom } = useRoomMembership()
 const backIcon = arrowBackIcon
 const selectedFile = ref<File | null>(null)
 const previewUrl = ref<string | null>(null)
 const analyzing = ref(false)
+const finalizing = ref(false)
 const errorMessage = ref('')
 const analysisResult = ref<ReceiptAnalysis | null>(null)
-const settlementResult = ref<ReceiptSettlement | null>(null)
 const rememberedFileName = ref('')
 
 function goBack() {
@@ -81,7 +87,6 @@ function onFileChange(event: Event) {
   selectedFile.value = file
   rememberedFileName.value = file.name
   analysisResult.value = null
-  settlementResult.value = null
   errorMessage.value = ''
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value)
@@ -94,17 +99,16 @@ async function runAnalysis() {
   analyzing.value = true
   errorMessage.value = ''
   try {
-    const roomId = currentRoomId.value ?? undefined
-    const result = await analyzeReceipt(selectedFile.value, roomId ? { roomId, action: 'finalize' } : undefined)
-    analysisResult.value = result.analysis
-    settlementResult.value = result.settlement ?? null
+    const response = await analyzeReceipt(selectedFile.value)
+    const analysis = response?.analysis ?? null
+    analysisResult.value = analysis
     rememberedFileName.value = selectedFile.value.name
+    const roomId = currentRoomId.value
     if (roomId) {
       syncSettlementSnapshot(roomId, {
-        analysis: result.analysis,
+        analysis,
         completedAt: new Date().toISOString(),
         fileName: rememberedFileName.value,
-        isFinal: true,
       })
     }
   } catch (error) {
@@ -136,11 +140,14 @@ watch(
     if (!snapshot) {
       if (!selectedFile.value) {
         rememberedFileName.value = ''
+        if (previewUrl.value) {
+          URL.revokeObjectURL(previewUrl.value)
+        }
+        previewUrl.value = null
       }
       if (!selectedFile.value) {
         analysisResult.value = null
       }
-      settlementResult.value = null
       return
     }
     analysisResult.value = snapshot.analysis ?? null
@@ -161,20 +168,57 @@ const formattedTotal = computed(() => {
   if (!analysisResult.value) return '-'
   if (analysisResult.value.totalAmount == null) return '확인되지 않음'
   const formatter = new Intl.NumberFormat('ko-KR')
-  const currency = analysisResult.value.currency ? ` ${analysisResult.value.currency}` : ''
-  return `${formatter.format(analysisResult.value.totalAmount)}${currency}`
+  const currencyCode = (analysisResult.value.currency || '').toUpperCase()
+  const unit = currencyCode === 'KRW' || !currencyCode ? '원' : currencyCode
+  return `${formatter.format(analysisResult.value.totalAmount)} ${unit}`.trim()
 })
 
-const settlementMessage = computed(() => {
-  const settlement = settlementResult.value
-  if (!settlement || settlement.action !== 'finalize') return ''
-  if (settlement.delta == null) return '정산이 완료되었습니다.'
-  if (settlement.delta === 0) return '추가 정산 없이 종료되었습니다.'
-  if (settlement.delta > 0) {
-    return `예상보다 ${settlement.delta.toLocaleString('ko-KR')}원 더 나와 추가 정산되었습니다.`
-  }
-  return `예상보다 ${Math.abs(settlement.delta).toLocaleString('ko-KR')}원 적게 나와 환급되었습니다.`
+const analyzeButtonLabel = computed(() => {
+  if (analyzing.value) return '분석 중...'
+  if (analysisResult.value?.totalAmount != null) return formattedTotal.value
+  return '영수증 인식하기'
 })
+
+const hasAmount = computed(() => analysisResult.value?.totalAmount != null)
+
+const amountMeta = computed(() => {
+  if (!analysisResult.value) return ''
+  return analysisResult.value.rawText ? '추출 완료' : ''
+})
+
+async function finalizeSettlement() {
+  if (finalizing.value) return
+  if (!selectedFile.value) {
+    errorMessage.value = '정산하려면 영수증 이미지를 다시 선택해 주세요.'
+    return
+  }
+  const roomId = currentRoomId.value
+  if (!roomId) {
+    errorMessage.value = '정산할 방 정보를 찾을 수 없습니다.'
+    return
+  }
+  finalizing.value = true
+  errorMessage.value = ''
+  try {
+    const response = await finalizeReceiptSettlement(selectedFile.value, roomId)
+    const analysis = response?.analysis ?? null
+    analysisResult.value = analysis
+    syncSettlementSnapshot(roomId, {
+      analysis,
+      completedAt: new Date().toISOString(),
+      fileName: rememberedFileName.value || selectedFile.value.name,
+      isFinal: true,
+    })
+    completeRoom(roomId, new Date().toISOString())
+    router.push({ name: 'my-rooms' })
+  } catch (error) {
+    console.error('Receipt finalize failed', error)
+    const message = error instanceof Error ? error.message : ''
+    errorMessage.value = message || '영수증 정산에 실패했어요. 잠시 후 다시 시도해 주세요.'
+  } finally {
+    finalizing.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -214,6 +258,7 @@ const settlementMessage = computed(() => {
   margin: 0;
   font-size: 1.3rem;
   font-weight: 700;
+  color: #3b2600;
 }
 
 .receipt-scan__header .eyebrow {
@@ -253,12 +298,10 @@ const settlementMessage = computed(() => {
   height: 32px;
 }
 
-.upload-card,
-.result-card {
+.upload-card {
   background: #fff;
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 16px 34px rgba(20, 12, 6, 0.12);
   display: grid;
   gap: 16px;
   max-width: 960px;
@@ -303,16 +346,28 @@ const settlementMessage = computed(() => {
 
 .primary-btn {
   border: none;
-  border-radius: 14px;
-  padding: 14px;
-  background: #ffd263;
+  border-radius: 18px;
+  padding: 14px 18px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #0f8f3a;
   font-weight: 700;
+  font-size: 15px;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.primary-btn:not(:disabled):hover,
+.primary-btn:not(:disabled):active {
+  background: rgba(34, 197, 94, 0.28);
+  color: #0f8f3a;
+  transform: translateY(-1px);
 }
 
 .primary-btn:disabled {
-  opacity: 0.5;
+  background: #e5e7eb;
+  color: #9ca3af;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .error {
@@ -320,30 +375,55 @@ const settlementMessage = computed(() => {
   margin: 0;
 }
 
-.result-card header {
-  margin: 0;
-}
-
-.result-card dl {
-  margin: 0;
+.amount-tile {
+  margin-top: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #e0f2eb;
+  border: 1px solid rgba(71, 132, 103, 0.22);
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
-.result-card dt {
-  font-weight: 600;
-  color: #6b5d4a;
-}
-
-.result-card dd {
+.amount-tile__label {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 13px;
+  color: #5b8372;
 }
 
-.settlement-message {
-  margin: 4px 0 0;
-  color: #8a5a26;
-  font-size: 0.95rem;
+.amount-tile__value {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #2f4c3e;
+}
+
+.amount-tile__meta {
+  margin: 0;
+  font-size: 14px;
+  color: #4f6b5b;
+}
+
+.confirm-area {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.confirm-btn {
+  width: 100%;
+  background: #fbc02d;
+  color: #3b2600;
+  border: none;
+  box-shadow: none;
+  transition: none;
+}
+
+.confirm-btn:not(:disabled):hover,
+.confirm-btn:not(:disabled):active {
+  background: #fbc02d;
+  color: #3b2600;
+  transform: none;
 }
 
 .items__title,

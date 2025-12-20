@@ -126,7 +126,7 @@ const RECEIPT_SETTLEMENT_PATH_PATTERN = /\/api\/receipts\/analyze(\?|$)/i
 
 const maybeRefreshNotifications = (url?: string, method?: string) => {
   if (!url || method?.toUpperCase() !== 'POST') return
-  if (!SETTLEMENT_PATH_PATTERN.test(url)) return
+  if (!SETTLEMENT_PATH_PATTERN.test(url) && !RECEIPT_SETTLEMENT_PATH_PATTERN.test(url)) return
   import('@/stores/notificationStore')
     .then(module => module.fetchNotificationFeed?.())
     .catch(error => {

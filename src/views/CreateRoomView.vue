@@ -264,7 +264,7 @@ import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import TimePicker from '@/components/TimePicker.vue'
 import FareInfoCard from '@/components/FareInfoCard.vue'
 import { loadKakaoMaps, type KakaoNamespace } from '@/services/kakaoMaps'
-import { createRoom, joinRoomFromApi, type CreateRoomPayload } from '@/api/rooms'
+import { createRoom, type CreateRoomPayload } from '@/api/rooms'
 import { useRoomMembership } from '@/composables/useRoomMembership'
 import { findUserById, getCurrentUser } from '@/services/auth'
 
@@ -513,71 +513,6 @@ watch(
   saveDraft,
   { deep: true },
 )
-
-function getHttpStatus(error: unknown) {
-  if (error && typeof error === 'object') {
-    if ('response' in error) {
-      const response = (error as { response?: { status?: number } }).response
-      if (response && typeof response.status === 'number') {
-        return response.status
-      }
-    }
-    if ('status' in error) {
-      const status = (error as { status?: number }).status
-      if (typeof status === 'number') return status
-    }
-  }
-  return undefined
-}
-
-function resolveSeatAssignError(error: unknown) {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const response = (error as { response?: { data?: unknown } }).response
-    const data = response?.data
-    if (typeof data === 'string' && data.trim()) return data
-    if (data && typeof data === 'object' && 'message' in data) {
-      return String((data as { message?: unknown }).message)
-    }
-  }
-  return error instanceof Error && error.message
-    ? error.message
-    : '좌석 배정에 실패했어요. 잠시 후 다시 시도해 주세요.'
-}
-
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-async function assignSeatAfterCreate(roomId: string | undefined, seatNumber: number | null) {
-  if (!roomId || typeof seatNumber !== 'number') return
-  const maxAttempts = 3
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      const response = await joinRoomFromApi(roomId, seatNumber)
-      const confirmedSeat =
-        typeof response?.participant?.seatNumber === 'number'
-          ? response.participant.seatNumber
-          : seatNumber
-      updateSeat(roomId, confirmedSeat)
-      return
-    } catch (error) {
-      const status = getHttpStatus(error)
-      if (status === 409) {
-        updateSeat(roomId, seatNumber)
-        return
-      }
-      if (status === 404) {
-        updateSeat(roomId, seatNumber)
-        return
-      }
-      const isRetriable = attempt < maxAttempts && (!status || status >= 500)
-      if (!isRetriable) {
-        console.warn('Failed to reserve seat after creating room', error)
-        alert(resolveSeatAssignError(error))
-        return
-      }
-      await wait(400 * attempt)
-    }
-  }
-}
 
 const preview = computed(() => ({
   title: form.title.trim() || '꼬꼬택과 고고 택시~',
@@ -1126,6 +1061,12 @@ async function submitForm() {
     isSubmitting.value = true
 
     const createdRoom = await createRoom(payload)
+    if (createdRoom && !createdRoom.creatorId) {
+      const currentUserId = getCurrentUser()?.id ?? ''
+      if (currentUserId) {
+        createdRoom.creatorId = currentUserId
+      }
+    }
     if (createdRoom && recognizedFare.value != null) {
       createdRoom.fare = recognizedFare.value
     }
