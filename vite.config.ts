@@ -9,5 +9,5 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  base: '/GogoTaxi-front/',  // GitHub Pages용 (저장소 이름에 맞게 수정)
+  base: process.env.VERCEL ? '/' : '/GogoTaxi-front/',
 })
