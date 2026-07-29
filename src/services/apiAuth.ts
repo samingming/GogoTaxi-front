@@ -74,5 +74,8 @@ export async function checkLoginIdAvailability(loginId: string) {
   const { data } = await http.get<{ available: boolean; loginId: string }>('/api/auth/check-id', {
     params: { loginId },
   })
+  if (typeof data?.available !== 'boolean') {
+    throw new Error('Invalid check-id response')
+  }
   return data
 }

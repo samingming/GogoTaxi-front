@@ -219,30 +219,29 @@ function onBirthInput(event: Event) {
   birthDate.value = formatBirth(target.value)
 }
 
-function checkId() {
-  if (!userid.value) {
+async function checkId() {
+  const loginId = userid.value.trim()
+  if (!loginId) {
     alert('아이디를 입력해 주세요.')
     return
   }
-  const loginId = userid.value.trim()
   if (!useRemoteAuth) {
     alert('아이디를 확인할 수 없습니다.')
     return
   }
-  checkLoginIdAvailability(loginId)
-    .then(({ available }) => {
-      if (available) {
-        alert('아이디를 사용하실 수 있습니다.')
-      } else {
-        alert('아이디가 이미 존재합니다.')
-      }
-    })
-    .catch((err) => {
-      console.error(err)
-      alert('아이디 중복확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
-    })
-}
 
+  try {
+    const { available } = await checkLoginIdAvailability(loginId)
+    if (available) {
+      alert('사용 가능한 아이디입니다.')
+    } else {
+      alert('이미 사용 중인 아이디입니다.')
+    }
+  } catch (err) {
+    console.error('check-id failed', err)
+    alert('아이디 중복확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+  }
+}
 
 function persistSession(res: LoginResponse) {
   const accessToken = res.accessToken || (res as { token?: string }).token
